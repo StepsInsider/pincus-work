@@ -202,14 +202,14 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 10),
-          _NavIcon(Icons.dashboard_outlined, AppModule.dashboard, module, onSelect, 'Start'),
-          _NavIcon(Icons.location_on_outlined, AppModule.sites, module, onSelect, 'Baustellen'),
-          _NavIcon(Icons.schedule_outlined, AppModule.time, module, onSelect, 'Zeit'),
-          _NavIcon(Icons.assignment_outlined, AppModule.orders, module, onSelect, 'Aufträge'),
-          _NavIcon(Icons.groups_outlined, AppModule.employees, module, onSelect, 'Mitarbeiter'),
-          _NavIcon(Icons.photo_camera_outlined, AppModule.photos, module, onSelect, 'Fotos'),
+          _navIcon(Icons.dashboard_outlined, AppModule.dashboard, module, onSelect, 'Start'),
+          _navIcon(Icons.location_on_outlined, AppModule.sites, module, onSelect, 'Baustellen'),
+          _navIcon(Icons.schedule_outlined, AppModule.time, module, onSelect, 'Zeit'),
+          _navIcon(Icons.assignment_outlined, AppModule.orders, module, onSelect, 'Aufträge'),
+          _navIcon(Icons.groups_outlined, AppModule.employees, module, onSelect, 'Mitarbeiter'),
+          _navIcon(Icons.photo_camera_outlined, AppModule.photos, module, onSelect, 'Fotos'),
           const Spacer(),
-          _NavIcon(Icons.settings_outlined, AppModule.settings, module, onSelect, 'Einstellungen'),
+          _navIcon(Icons.settings_outlined, AppModule.settings, module, onSelect, 'Einstellungen'),
           const SizedBox(height: 10),
         ],
       ),
@@ -217,7 +217,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-Widget _NavIcon(IconData icon, AppModule item, AppModule current, ValueChanged<AppModule> onSelect, String label) {
+Widget _navIcon(IconData icon, AppModule item, AppModule current, ValueChanged<AppModule> onSelect, String label) {
   final active = item == current;
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -329,7 +329,7 @@ class _PageHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (action != null) action!,
+            if (action != null) action!,
         ],
       );
 }
@@ -432,7 +432,7 @@ class _TreePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = _green.withOpacity(.08);
+    final p = Paint()..color = _green.withValues(alpha: .08);
     final tree = Path()
       ..moveTo(size.width * .58, size.height)
       ..quadraticBezierTo(size.width * .55, size.height * .65, size.width * .58, size.height * .38)
