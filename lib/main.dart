@@ -947,10 +947,29 @@ class _Sites extends StatelessWidget {
       _PageHeader(
         title: 'Baustellen',
         subtitle: 'Baustellen, Kunden und Einsatzorte verwalten.',
-        action: FilledButton.icon(
-          onPressed: () => _showSiteForm(context, onAdd),
-          icon: const Icon(Icons.add),
-          label: const Text('Baustelle anlegen'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => PdfService.printSitesReport(
+                title: 'Baustellenübersicht Pincus Work',
+                items: sites.map((s) => {
+                  'name': s.name,
+                  'customer': s.customer,
+                  'address': s.address,
+                  'status': s.status,
+                }).toList(),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF Export'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => _showSiteForm(context, onAdd),
+              icon: const Icon(Icons.add),
+              label: const Text('Baustelle anlegen'),
+            ),
+          ],
         ),
       ),
       _ModuleCard(
