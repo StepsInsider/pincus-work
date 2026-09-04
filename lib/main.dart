@@ -499,7 +499,7 @@ class _MonthSection extends StatelessWidget {
               final day = index - leadingDays + 1;
               final dateKey = _calendarDateKey(DateTime(year, month, day));
               final dayEntries = groupedEntries[dateKey] ?? const <TimeEntry>[];
-              return _CalendarDay(day: day, entries: dayEntries, sites: sites);
+              return _CalendarDay(day: day, entries: dayEntries, sites: sites, dateStr: dateKey);
             },
           ),
         ],
@@ -523,53 +523,99 @@ class _WeekdayLabel extends StatelessWidget {
 }
 
 class _CalendarDay extends StatelessWidget {
-  const _CalendarDay({required this.day, required this.entries, required this.sites});
+  const _CalendarDay({required this.day, required this.entries, required this.sites, required this.dateStr});
 
   final int day;
   final List<TimeEntry> entries;
   final List<Site> sites;
+  final String dateStr;
 
   @override
   Widget build(BuildContext context) {
     final totalHours = entries.fold<double>(0, (total, entry) => total + _entryHours(entry));
     final summaries = <String, double>{};
     for (final entry in entries) {
-      final site = sites.where((site) => site.name == entry.site).firstOrNull;
+      final site = sites.where((s) => s.name == entry.site).firstOrNull;
       final customer = site?.customer;
       final label = customer == null || customer.isEmpty ? entry.site : '${entry.site} · $customer';
       summaries[label] = (summaries[label] ?? 0) + _entryHours(entry);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: entries.isEmpty ? Colors.white : _greenLight,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: entries.isEmpty ? _border : _green),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$day', style: const TextStyle(fontWeight: FontWeight.w800)),
-          if (entries.isNotEmpty) ...[
-            const Spacer(),
-            Text(
-              '${totalHours.toStringAsFixed(1)} Std. · ${entries.length} Eins.',
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-              overflow: TextOverflow.ellipsis,
-            ),
-            ...summaries.entries
-                .take(2)
-                .map(
-                  (summary) => Text(
-                    '${summary.key}: ${summary.value.toStringAsFixed(1)} Std.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 9, color: Colors.black54),
-                  ),
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Tagesdetails für den $dateStr'),
+            content: SizedBox(
+              width: 400,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gesamte Stunden: ${totalHours.toStringAsFixed(1)} Std.', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    if (entries.isEmpty)
+                      const Text('Keine Zeiteinträge an diesem Tag.')
+                    else
+                      ...entries.map((e) => Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Mitarbeiter: ${e.employee}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text('Baustelle/Kunde: ${e.site}'),
+                              Text('Zeitraum: ${e.start} - ${e.end} (${_entryHours(e).toStringAsFixed(1)} Std.)'),
+                              if (e.task.isNotEmpty) Text('Notiz: ${e.task}', style: const TextStyle(color: Colors.black54)),
+                            ],
+                          ),
+                        ),
+                      )),
+                  ],
                 ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Schließen')),
+            ],
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: entries.isEmpty ? Colors.white : _greenLight,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: entries.isEmpty ? _border : _green),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$day', style: const TextStyle(fontWeight: FontWeight.w800)),
+            if (entries.isNotEmpty) ...[
+              const Spacer(),
+              Text(
+                '${totalHours.toStringAsFixed(1)} Std. · ${entries.length}Eins.',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis,
+              ),
+              ...summaries.entries
+                  .take(2)
+                  .map(
+                    (summary) => Text(
+                      '${summary.key}: ${summary.value.toStringAsFixed(1)}Std.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 9, color: Colors.black54),
+                    ),
+                  ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
