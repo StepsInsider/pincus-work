@@ -1114,10 +1114,28 @@ class _Employees extends StatelessWidget {
       _PageHeader(
         title: 'Mitarbeiter',
         subtitle: 'Stammdaten und Kontaktdaten verwalten.',
-        action: FilledButton.icon(
-          onPressed: () => _showEmployeeForm(context, onAdd),
-          icon: const Icon(Icons.add),
-          label: const Text('Mitarbeiter anlegen'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => PdfService.printEmployeesReport(
+                title: 'Mitarbeiterübersicht Pincus Work',
+                items: employees.map((e) => {
+                  'name': e.name,
+                  'role': e.role,
+                  'phone': e.phone,
+                }).toList(),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF Export'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => _showEmployeeForm(context, onAdd),
+              icon: const Icon(Icons.add),
+              label: const Text('Mitarbeiter anlegen'),
+            ),
+          ],
         ),
       ),
       _ModuleCard(
