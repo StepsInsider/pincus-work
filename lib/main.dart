@@ -1,7 +1,7 @@
 import 'features/sites/widgets/site_selector_widget.dart';
 import 'package:flutter/material.dart';
 
-import 'features/materials/services/material_equipment_service.dart';
+import 'services/material_equipment_service.dart';
 import 'features/materials/views/materials_view.dart';
 import 'features/photos/photo_upload_dialog.dart';
 import 'services/photo_documentation_service.dart';
