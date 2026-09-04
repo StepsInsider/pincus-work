@@ -1,9 +1,9 @@
+import 'features/sites/widgets/site_selector_widget.dart';
 import 'package:flutter/material.dart';
 
 import 'features/materials/services/material_equipment_service.dart';
 import 'features/materials/views/materials_view.dart';
 import 'features/photos/photo_upload_dialog.dart';
-import 'features/sites/widgets/site_selector_widget.dart';
 import 'services/photo_documentation_service.dart';
 import 'services/pdf_service.dart';
 
@@ -1155,42 +1155,58 @@ class _Photos extends StatelessWidget {
   final List<Site> sites;
   final ValueChanged<PhotoItem> onAdd;
   final PhotoDocumentationService service;
+
   @override
   Widget build(BuildContext context) => Column(
     children: [
       _PageHeader(
         title: 'Fotos',
         subtitle: 'Baustellenfotos mit Beschreibung dokumentieren.',
-        action: FilledButton.icon(
-          onPressed: sites.isEmpty
-              ? null
-              : () => showDialog<void>(
-                  context: context,
-                  builder: (context) => PhotoUploadDialog(
-                    sites: sites
-                        .map((site) => SiteSelectorItem(id: site.id, name: site.name, status: site.status))
-                        .toList(),
-                    service: service,
-                    onSaved: (documentation) {
-                      final site = sites.firstWhere((site) => site.id == documentation.projectId);
-                      onAdd(
-                        PhotoItem(site: site.name, description: '${documentation.category} · ${documentation.note}'),
-                      );
-                    },
-                  ),
-                ),
-          icon: const Icon(Icons.add_a_photo_outlined),
-          label: const Text('Foto dokumentieren'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => PdfService.printPhotosReport(
+                title: 'Fotodokumentation Pincus Work',
+                items: photos.map((p) => {
+                  'siteName': p.site,
+                  'description': p.description,
+                  'date': '-',
+                }).toList(),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF Export'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: sites.isEmpty
+                  ? null
+                  : () => showDialog<void>(
+                      context: context,
+                      builder: (context) => PhotoUploadDialog(
+                        sites: sites.map((s) => SiteSelectorItem(id: s.name, name: s.name, status: 'aktiv')).toList(),
+                        service: service,
+                        onSaved: (photoDoc) {
+                          onAdd(PhotoItem(site: photoDoc.projectId, description: photoDoc.note));
+                        },
+                      ),
+                    ),
+              icon: const Icon(Icons.add),
+              label: const Text('Foto hochladen'),
+            ),
+          ],
         ),
       ),
       _ModuleCard(
-        child: photos.isEmpty
-            ? const _EmptyState(icon: Icons.photo_camera_outlined, text: 'Noch keine Fotodokumentationen.')
-            : Column(
-                children: photos
-                    .map((p) => _DataTile(icon: Icons.photo_outlined, title: p.site, subtitle: p.description))
-                    .toList(),
-              ),
+        child: Column(
+          children: photos.isEmpty
+              ? [const Padding(padding: EdgeInsets.all(16), child: Text('Keine Fotos vorhanden'))]
+              : photos.map((p) => _DataTile(
+                  icon: Icons.photo_outlined,
+                  title: p.site,
+                  subtitle: p.description,
+                )).toList(),
+        ),
       ),
     ],
   );
