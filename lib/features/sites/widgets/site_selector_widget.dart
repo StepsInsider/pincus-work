@@ -41,7 +41,9 @@ class _SiteSelectorWidgetState extends State<SiteSelectorWidget> {
   @override
   Widget build(BuildContext context) {
     if (widget.sites.isEmpty) {
-      return const Text('Keine Baustellen gefunden. Bitte zuerst eine Baustelle anlegen.');
+      return const Text(
+        'Keine Baustellen gefunden. Bitte zuerst eine Baustelle anlegen.',
+      );
     }
 
     final filteredSites = widget.sites.where((site) {
@@ -66,9 +68,8 @@ class _SiteSelectorWidgetState extends State<SiteSelectorWidget> {
           const SizedBox(height: 12),
         ],
         DropdownButtonFormField<String>(
-          initialValue: filteredSites.any(
-            (site) => site.id == widget.selectedSiteId,
-          )
+          initialValue:
+              filteredSites.any((site) => site.id == widget.selectedSiteId)
               ? widget.selectedSiteId
               : null,
           decoration: const InputDecoration(

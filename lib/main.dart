@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'features/materials/material_entry_dialog.dart';
+import 'features/materials/services/material_equipment_service.dart';
+import 'features/materials/views/materials_view.dart';
+import 'features/photos/photo_upload_dialog.dart';
 import 'features/sites/widgets/site_selector_widget.dart';
-import 'services/material_equipment_service.dart';
+import 'services/photo_documentation_service.dart';
+import 'services/pdf_service.dart';
 
 const _green = Color(0xFF23863A);
 const _greenDark = Color(0xFF17672B);
@@ -39,10 +42,7 @@ class PincusWorkApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: _green, width: 1.5),
           ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 13,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         ),
       ),
       home: const AppShell(),
@@ -50,25 +50,11 @@ class PincusWorkApp extends StatelessWidget {
   }
 }
 
-enum AppModule {
-  dashboard,
-  sites,
-  materials,
-  time,
-  orders,
-  employees,
-  photos,
-  settings,
-}
+enum AppModule { dashboard, calendar, sites, materials, time, orders, employees, photos, settings }
 
 class Site {
-  Site({
-    String? id,
-    required this.name,
-    required this.customer,
-    required this.address,
-    this.status = 'Aktiv',
-  }) : id = id ?? name;
+  Site({String? id, required this.name, required this.customer, required this.address, this.status = 'Aktiv'})
+    : id = id ?? name;
   final String id;
   String name;
   String customer;
@@ -96,12 +82,7 @@ class TimeEntry {
 }
 
 class OrderItem {
-  OrderItem({
-    required this.number,
-    required this.title,
-    required this.customer,
-    required this.status,
-  });
+  OrderItem({required this.number, required this.title, required this.customer, required this.status});
   String number;
   String title;
   String customer;
@@ -131,50 +112,27 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   AppModule _module = AppModule.dashboard;
   final _materialService = MaterialEquipmentService();
+  final _photoService = PhotoDocumentationService();
 
   final sites = <Site>[
-    Site(
-      name: 'Baumfällung Musterstraße',
-      customer: 'Max Mustermann',
-      address: 'Musterstraße 12, Kamen',
-    ),
-    Site(
-      name: 'Gartenpflege Lindenweg',
-      customer: 'Müller Immobilien',
-      address: 'Lindenweg 8, Unna',
-    ),
+    Site(name: 'Baumfällung Musterstraße', customer: 'Max Mustermann', address: 'Musterstraße 12, Kamen'),
+    Site(name: 'Gartenpflege Lindenweg', customer: 'Müller Immobilien', address: 'Lindenweg 8, Unna'),
   ];
   final timeEntries = <TimeEntry>[];
   final orders = <OrderItem>[
-    OrderItem(
-      number: 'AU-2026-001',
-      title: 'Baumkontrolle und Pflege',
-      customer: 'Max Mustermann',
-      status: 'Offen',
-    ),
-    OrderItem(
-      number: 'AU-2026-002',
-      title: 'Heckenschnitt',
-      customer: 'Müller Immobilien',
-      status: 'In Arbeit',
-    ),
+    OrderItem(number: 'AU-2026-001', title: 'Baumkontrolle und Pflege', customer: 'Max Mustermann', status: 'Offen'),
+    OrderItem(number: 'AU-2026-002', title: 'Heckenschnitt', customer: 'Müller Immobilien', status: 'In Arbeit'),
   ];
   final employees = <Employee>[
-    Employee(
-      name: 'René Pincus',
-      role: 'Geschäftsführung',
-      phone: '0170 0000000',
-    ),
+    Employee(name: 'René Pincus', role: 'Geschäftsführung', phone: '0170 0000000'),
     Employee(name: 'Mitarbeiter 1', role: 'Fachkraft', phone: '0171 0000000'),
   ];
   final photos = <PhotoItem>[];
 
   void _addSite(Site site) => setState(() => sites.insert(0, site));
-  void _addTime(TimeEntry entry) =>
-      setState(() => timeEntries.insert(0, entry));
+  void _addTime(TimeEntry entry) => setState(() => timeEntries.insert(0, entry));
   void _addOrder(OrderItem item) => setState(() => orders.insert(0, item));
-  void _addEmployee(Employee employee) =>
-      setState(() => employees.insert(0, employee));
+  void _addEmployee(Employee employee) => setState(() => employees.insert(0, employee));
   void _addPhoto(PhotoItem photo) => setState(() => photos.insert(0, photo));
 
   @override
@@ -190,16 +148,13 @@ class _AppShellState extends State<AppShell> {
                 Expanded(
                   child: Row(
                     children: [
-                      if (!mobile)
-                        _Sidebar(
-                          module: _module,
-                          onSelect: (m) => setState(() => _module = m),
-                        ),
+                      if (!mobile) _Sidebar(module: _module, onSelect: (m) => setState(() => _module = m)),
                       Expanded(
                         child: _Content(
                           module: _module,
                           sites: sites,
                           materialService: _materialService,
+                          photoService: _photoService,
                           onMaterialsChanged: () => setState(() {}),
                           timeEntries: timeEntries,
                           orders: orders,
@@ -216,11 +171,7 @@ class _AppShellState extends State<AppShell> {
                     ],
                   ),
                 ),
-                if (mobile)
-                  _MobileNav(
-                    module: _module,
-                    onSelect: (m) => setState(() => _module = m),
-                  ),
+                if (mobile) _MobileNav(module: _module, onSelect: (m) => setState(() => _module = m)),
                 const _FooterBar(),
               ],
             ),
@@ -245,20 +196,13 @@ class _TopBar extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
             child: const Icon(Icons.park, color: _greenDark, size: 23),
           ),
           const SizedBox(width: 10),
           const Text(
             'PINCUS WORK',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1.1),
           ),
           const Spacer(),
           IconButton(
@@ -292,63 +236,16 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 10),
-          _navIcon(
-            Icons.dashboard_outlined,
-            AppModule.dashboard,
-            module,
-            onSelect,
-            'Start',
-          ),
-          _navIcon(
-            Icons.location_on_outlined,
-            AppModule.sites,
-            module,
-            onSelect,
-            'Baustellen',
-          ),
-          _navIcon(
-            Icons.construction_outlined,
-            AppModule.materials,
-            module,
-            onSelect,
-            'Material & Geräte',
-          ),
-          _navIcon(
-            Icons.schedule_outlined,
-            AppModule.time,
-            module,
-            onSelect,
-            'Zeit',
-          ),
-          _navIcon(
-            Icons.assignment_outlined,
-            AppModule.orders,
-            module,
-            onSelect,
-            'Aufträge',
-          ),
-          _navIcon(
-            Icons.groups_outlined,
-            AppModule.employees,
-            module,
-            onSelect,
-            'Mitarbeiter',
-          ),
-          _navIcon(
-            Icons.photo_camera_outlined,
-            AppModule.photos,
-            module,
-            onSelect,
-            'Fotos',
-          ),
+          _navIcon(Icons.dashboard_outlined, AppModule.dashboard, module, onSelect, 'Start'),
+          _navIcon(Icons.calendar_month_outlined, AppModule.calendar, module, onSelect, 'Jahreskalender'),
+          _navIcon(Icons.location_on_outlined, AppModule.sites, module, onSelect, 'Baustellen'),
+          _navIcon(Icons.construction_outlined, AppModule.materials, module, onSelect, 'Material & Geräte'),
+          _navIcon(Icons.schedule_outlined, AppModule.time, module, onSelect, 'Zeit'),
+          _navIcon(Icons.assignment_outlined, AppModule.orders, module, onSelect, 'Aufträge'),
+          _navIcon(Icons.groups_outlined, AppModule.employees, module, onSelect, 'Mitarbeiter'),
+          _navIcon(Icons.photo_camera_outlined, AppModule.photos, module, onSelect, 'Fotos'),
           const Spacer(),
-          _navIcon(
-            Icons.settings_outlined,
-            AppModule.settings,
-            module,
-            onSelect,
-            'Einstellungen',
-          ),
+          _navIcon(Icons.settings_outlined, AppModule.settings, module, onSelect, 'Einstellungen'),
           const SizedBox(height: 10),
         ],
       ),
@@ -356,13 +253,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-Widget _navIcon(
-  IconData icon,
-  AppModule item,
-  AppModule current,
-  ValueChanged<AppModule> onSelect,
-  String label,
-) {
+Widget _navIcon(IconData icon, AppModule item, AppModule current, ValueChanged<AppModule> onSelect, String label) {
   final active = item == current;
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -378,11 +269,7 @@ Widget _navIcon(
             color: active ? _greenLight : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            icon,
-            size: 23,
-            color: active ? _greenDark : Colors.black54,
-          ),
+          child: Icon(icon, size: 23, color: active ? _greenDark : Colors.black54),
         ),
       ),
     ),
@@ -398,6 +285,7 @@ class _MobileNav extends StatelessWidget {
   Widget build(BuildContext context) {
     const items = [
       AppModule.dashboard,
+      AppModule.calendar,
       AppModule.sites,
       AppModule.materials,
       AppModule.time,
@@ -415,6 +303,7 @@ class _MobileNav extends StatelessWidget {
         children: items.map((item) {
           final icon = switch (item) {
             AppModule.dashboard => Icons.dashboard_outlined,
+            AppModule.calendar => Icons.calendar_month_outlined,
             AppModule.sites => Icons.location_on_outlined,
             AppModule.materials => Icons.construction_outlined,
             AppModule.time => Icons.schedule_outlined,
@@ -448,6 +337,7 @@ class _Content extends StatelessWidget {
     required this.module,
     required this.sites,
     required this.materialService,
+    required this.photoService,
     required this.onMaterialsChanged,
     required this.timeEntries,
     required this.orders,
@@ -463,6 +353,7 @@ class _Content extends StatelessWidget {
   final AppModule module;
   final List<Site> sites;
   final MaterialEquipmentService materialService;
+  final PhotoDocumentationService photoService;
   final VoidCallback onMaterialsChanged;
   final List<TimeEntry> timeEntries;
   final List<OrderItem> orders;
@@ -490,34 +381,236 @@ class _Content extends StatelessWidget {
               employees: employees,
               onSelect: onSelect,
             ),
+            AppModule.calendar => _YearCalendarView(entries: timeEntries, sites: sites),
             AppModule.sites => _Sites(sites: sites, onAdd: onAddSite),
-            AppModule.materials => _Materials(
-              sites: sites,
-              service: materialService,
-              onChanged: onMaterialsChanged,
-            ),
-            AppModule.time => _TimeTracking(
-              entries: timeEntries,
-              sites: sites,
-              employees: employees,
-              onAdd: onAddTime,
-            ),
+            AppModule.materials => MaterialsView(sites: sites, service: materialService, onChanged: onMaterialsChanged),
+            AppModule.time => _TimeTracking(entries: timeEntries, sites: sites, employees: employees, onAdd: onAddTime),
             AppModule.orders => _Orders(orders: orders, onAdd: onAddOrder),
-            AppModule.employees => _Employees(
-              employees: employees,
-              onAdd: onAddEmployee,
-            ),
-            AppModule.photos => _Photos(
-              photos: photos,
-              sites: sites,
-              onAdd: onAddPhoto,
-            ),
+            AppModule.employees => _Employees(employees: employees, onAdd: onAddEmployee),
+            AppModule.photos => _Photos(photos: photos, sites: sites, onAdd: onAddPhoto, service: photoService),
             AppModule.settings => const _Settings(),
           },
         ),
       ),
     );
   }
+}
+
+class _YearCalendarView extends StatelessWidget {
+  const _YearCalendarView({required this.entries, required this.sites});
+
+  final List<TimeEntry> entries;
+  final List<Site> sites;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentYear = DateTime.now().year;
+    final groupedEntries = <String, List<TimeEntry>>{};
+    for (final entry in entries) {
+      final date = _parseCalendarDate(entry.date);
+      if (date != null && date.year == currentYear) {
+        final dateKey = _calendarDateKey(date);
+        groupedEntries.putIfAbsent(dateKey, () => []).add(entry);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PageHeader(
+          title: 'Jahreskalender $currentYear',
+          subtitle: 'Einsätze, Mitarbeiter, Baustellen und Stunden nach Tagen.',
+        ),
+        const SizedBox(height: 18),
+        if (groupedEntries.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 14),
+            child: Text('Noch keine Zeiteinträge für dieses Jahr.', style: TextStyle(color: Colors.black54)),
+          ),
+        for (var month = 1; month <= 12; month++) ...[
+          _MonthSection(year: currentYear, month: month, groupedEntries: groupedEntries, sites: sites),
+          const SizedBox(height: 14),
+        ],
+      ],
+    );
+  }
+}
+
+class _MonthSection extends StatelessWidget {
+  const _MonthSection({required this.year, required this.month, required this.groupedEntries, required this.sites});
+
+  final int year;
+  final int month;
+  final Map<String, List<TimeEntry>> groupedEntries;
+  final List<Site> sites;
+
+  static const _monthNames = [
+    'Januar',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final firstDay = DateTime(year, month, 1);
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final leadingDays = firstDay.weekday - 1;
+
+    return _ModuleCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_monthNames[month - 1], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _WeekdayLabel('Mo'),
+              _WeekdayLabel('Di'),
+              _WeekdayLabel('Mi'),
+              _WeekdayLabel('Do'),
+              _WeekdayLabel('Fr'),
+              _WeekdayLabel('Sa'),
+              _WeekdayLabel('So'),
+            ],
+          ),
+          const SizedBox(height: 6),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: leadingDays + daysInMonth,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisExtent: 86,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
+            ),
+            itemBuilder: (context, index) {
+              if (index < leadingDays) return const SizedBox.shrink();
+              final day = index - leadingDays + 1;
+              final dateKey = _calendarDateKey(DateTime(year, month, day));
+              final dayEntries = groupedEntries[dateKey] ?? const <TimeEntry>[];
+              return _CalendarDay(day: day, entries: dayEntries, sites: sites);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekdayLabel extends StatelessWidget {
+  const _WeekdayLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Text(
+      label,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black54),
+    ),
+  );
+}
+
+class _CalendarDay extends StatelessWidget {
+  const _CalendarDay({required this.day, required this.entries, required this.sites});
+
+  final int day;
+  final List<TimeEntry> entries;
+  final List<Site> sites;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalHours = entries.fold<double>(0, (total, entry) => total + _entryHours(entry));
+    final summaries = <String, double>{};
+    for (final entry in entries) {
+      final site = sites.where((site) => site.name == entry.site).firstOrNull;
+      final customer = site?.customer;
+      final label = customer == null || customer.isEmpty ? entry.site : '${entry.site} · $customer';
+      summaries[label] = (summaries[label] ?? 0) + _entryHours(entry);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: entries.isEmpty ? Colors.white : _greenLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: entries.isEmpty ? _border : _green),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$day', style: const TextStyle(fontWeight: FontWeight.w800)),
+          if (entries.isNotEmpty) ...[
+            const Spacer(),
+            Text(
+              '${totalHours.toStringAsFixed(1)} Std. · ${entries.length} Eins.',
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis,
+            ),
+            ...summaries.entries
+                .take(2)
+                .map(
+                  (summary) => Text(
+                    '${summary.key}: ${summary.value.toStringAsFixed(1)} Std.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 9, color: Colors.black54),
+                  ),
+                ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+DateTime? _parseCalendarDate(String value) {
+  final trimmed = value.trim();
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed != null) return parsed;
+  final parts = trimmed.split('.');
+  if (parts.length != 3) return null;
+  final day = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final year = int.tryParse(parts[2]);
+  if (day == null || month == null || year == null) return null;
+  return DateTime.tryParse('$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}');
+}
+
+String _calendarDateKey(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
+
+double _entryHours(TimeEntry entry) {
+  final start = _parseClock(entry.start);
+  final end = _parseClock(entry.end);
+  final breakMinutes = double.tryParse(entry.breakMinutes.replaceAll(',', '.')) ?? 0;
+  if (start == null || end == null) return 0;
+  final duration = end - start - breakMinutes;
+  return duration > 0 ? duration / 60 : 0;
+}
+
+int? _parseClock(String value) {
+  final parts = value.trim().split(':');
+  if (parts.length != 2) return null;
+  final hours = int.tryParse(parts[0]);
+  final minutes = int.tryParse(parts[1]);
+  if (hours == null || minutes == null || hours < 0 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return hours * 60 + minutes;
 }
 
 class _PageHeader extends StatelessWidget {
@@ -534,16 +627,13 @@ class _PageHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
-            ),
+            Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
             Text(subtitle, style: const TextStyle(color: Colors.black54)),
           ],
         ),
       ),
-      if (action != null) action!,
+      ?action,
     ],
   );
 }
@@ -567,10 +657,7 @@ class _Dashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _PageHeader(
-          title: 'PINCUS WORK',
-          subtitle: 'Baum- & Landschaftspflege · Übersicht',
-        ),
+        const _PageHeader(title: 'PINCUS WORK', subtitle: 'Baum- & Landschaftspflege · Übersicht'),
         const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, c) {
@@ -625,26 +712,15 @@ class _Dashboard extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              const Positioned.fill(
-                child: CustomPaint(painter: _TreePainter()),
-              ),
+              const Positioned.fill(child: CustomPaint(painter: _TreePainter())),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Arbeitsübersicht',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
+                    const Text('Arbeitsübersicht', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Alle wichtigen Bereiche auf einen Blick.',
-                      style: TextStyle(color: Colors.black54),
-                    ),
+                    const Text('Alle wichtigen Bereiche auf einen Blick.', style: TextStyle(color: Colors.black54)),
                     const Spacer(),
                     Wrap(
                       spacing: 10,
@@ -734,10 +810,7 @@ class _Dashboard extends StatelessWidget {
     leading: const Icon(Icons.assignment_outlined, color: _green),
     title: Text(o.title),
     subtitle: Text('${o.number} · ${o.customer}'),
-    trailing: Text(
-      o.status,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-    ),
+    trailing: Text(o.status, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
   );
 }
 
@@ -749,54 +822,14 @@ class _TreePainter extends CustomPainter {
     final p = Paint()..color = _green.withValues(alpha: .08);
     final tree = Path()
       ..moveTo(size.width * .58, size.height)
-      ..quadraticBezierTo(
-        size.width * .55,
-        size.height * .65,
-        size.width * .58,
-        size.height * .38,
-      )
-      ..quadraticBezierTo(
-        size.width * .48,
-        size.height * .30,
-        size.width * .40,
-        size.height * .20,
-      )
-      ..quadraticBezierTo(
-        size.width * .54,
-        size.height * .24,
-        size.width * .62,
-        size.height * .34,
-      )
-      ..quadraticBezierTo(
-        size.width * .72,
-        size.height * .16,
-        size.width * .88,
-        size.height * .19,
-      )
-      ..quadraticBezierTo(
-        size.width * .76,
-        size.height * .28,
-        size.width * .70,
-        size.height * .43,
-      )
-      ..quadraticBezierTo(
-        size.width * .84,
-        size.height * .31,
-        size.width * .97,
-        size.height * .38,
-      )
-      ..quadraticBezierTo(
-        size.width * .80,
-        size.height * .48,
-        size.width * .68,
-        size.height * .55,
-      )
-      ..quadraticBezierTo(
-        size.width * .73,
-        size.height * .75,
-        size.width * .70,
-        size.height,
-      )
+      ..quadraticBezierTo(size.width * .55, size.height * .65, size.width * .58, size.height * .38)
+      ..quadraticBezierTo(size.width * .48, size.height * .30, size.width * .40, size.height * .20)
+      ..quadraticBezierTo(size.width * .54, size.height * .24, size.width * .62, size.height * .34)
+      ..quadraticBezierTo(size.width * .72, size.height * .16, size.width * .88, size.height * .19)
+      ..quadraticBezierTo(size.width * .76, size.height * .28, size.width * .70, size.height * .43)
+      ..quadraticBezierTo(size.width * .84, size.height * .31, size.width * .97, size.height * .38)
+      ..quadraticBezierTo(size.width * .80, size.height * .48, size.width * .68, size.height * .55)
+      ..quadraticBezierTo(size.width * .73, size.height * .75, size.width * .70, size.height)
       ..close();
     canvas.drawPath(tree, p);
   }
@@ -806,12 +839,7 @@ class _TreePainter extends CustomPainter {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
+  const _StatCard({required this.icon, required this.title, required this.value, required this.onTap});
   final IconData icon;
   final String title;
   final String value;
@@ -833,10 +861,7 @@ class _StatCard extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: _greenLight,
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: _greenLight, borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: _greenDark),
           ),
           const SizedBox(width: 12),
@@ -845,17 +870,8 @@ class _StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.black54, fontSize: 12),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                  ),
-                ),
+                Text(title, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
               ],
             ),
           ),
@@ -866,28 +882,17 @@ class _StatCard extends StatelessWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon, size: 18),
-    label: Text(label),
-  );
+  Widget build(BuildContext context) =>
+      OutlinedButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label));
 }
 
 class _RecentCard extends StatelessWidget {
-  const _RecentCard({
-    required this.title,
-    required this.children,
-    required this.empty,
-  });
+  const _RecentCard({required this.title, required this.children, required this.empty});
   final String title;
   final List<Widget> children;
   final bool empty;
@@ -903,18 +908,12 @@ class _RecentCard extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-          child: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
+          child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
         ),
         if (empty)
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text(
-              'Noch keine Einträge.',
-              style: TextStyle(color: Colors.black54),
-            ),
+            child: Text('Noch keine Einträge.', style: TextStyle(color: Colors.black54)),
           ),
         ...children,
       ],
@@ -974,113 +973,8 @@ class _Sites extends StatelessWidget {
   );
 }
 
-class _Materials extends StatefulWidget {
-  const _Materials({
-    required this.sites,
-    required this.service,
-    required this.onChanged,
-  });
-  final List<Site> sites;
-  final MaterialEquipmentService service;
-  final VoidCallback onChanged;
-
-  @override
-  State<_Materials> createState() => _MaterialsState();
-}
-
-class _MaterialsState extends State<_Materials> {
-  String? _selectedProjectId;
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedProjectId =
-        widget.sites.any((site) => site.id == _selectedProjectId)
-        ? _selectedProjectId
-        : widget.sites.isEmpty
-        ? null
-        : widget.sites.first.id;
-    final items = widget.sites
-        .expand((site) => widget.service.itemsForProject(site.id))
-        .toList();
-
-    return Column(
-      children: [
-        _PageHeader(
-          title: 'Material & Geräte',
-          subtitle: 'Verbrauch und Maschineneinsatz pro Baustelle erfassen.',
-          action: FilledButton.icon(
-            onPressed: widget.sites.isEmpty
-                ? null
-                : () => showDialog<void>(
-                    context: context,
-                    builder: (context) => MaterialEntryDialog(
-                      projectId: selectedProjectId!,
-                      service: widget.service,
-                      onSaved: widget.onChanged,
-                    ),
-                  ),
-            icon: const Icon(Icons.add),
-            label: const Text('Eintrag erfassen'),
-          ),
-        ),
-        if (widget.sites.isNotEmpty)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 360,
-              child: SiteSelectorWidget(
-                sites: widget.sites
-                    .map(
-                      (site) => SiteSelectorItem(
-                        id: site.id,
-                        name: site.name,
-                        status: site.status,
-                      ),
-                    )
-                    .toList(),
-                selectedSiteId: selectedProjectId,
-                onSiteSelected: (value) => setState(() {
-                  _selectedProjectId = value;
-                }),
-              ),
-            ),
-          ),
-        _ModuleCard(
-          child: items.isEmpty
-              ? const _EmptyState(
-                  icon: Icons.construction_outlined,
-                  text: 'Noch keine Material- oder Geräteeinträge.',
-                )
-              : Column(
-                  children: items.map((item) {
-                    final site = widget.sites.firstWhere(
-                      (site) => site.id == item.projectId,
-                    );
-                    return _DataTile(
-                      icon: item.isEquipment
-                          ? Icons.handyman_outlined
-                          : Icons.inventory_2_outlined,
-                      title: item.itemName,
-                      subtitle:
-                          '${site.name} · ${item.quantity} ${item.unit}'
-                          '${item.notes.isEmpty ? '' : ' · ${item.notes}'}',
-                      status: item.isEquipment ? 'Gerät' : 'Material',
-                    );
-                  }).toList(),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
 class _TimeTracking extends StatelessWidget {
-  const _TimeTracking({
-    required this.entries,
-    required this.sites,
-    required this.employees,
-    required this.onAdd,
-  });
+  const _TimeTracking({required this.entries, required this.sites, required this.employees, required this.onAdd});
   final List<TimeEntry> entries;
   final List<Site> sites;
   final List<Employee> employees;
@@ -1091,10 +985,29 @@ class _TimeTracking extends StatelessWidget {
       _PageHeader(
         title: 'Zeiterfassung',
         subtitle: 'Arbeitszeiten direkt im Einsatz erfassen.',
-        action: FilledButton.icon(
-          onPressed: () => _showTimeForm(context, sites, employees, onAdd),
-          icon: const Icon(Icons.add),
-          label: const Text('Zeit erfassen'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => PdfService.printTimeReport(
+                title: 'Stundennachweis Pincus Work',
+                items: entries.map((e) => {
+                  'date': e.date,
+                  'employee': e.employee,
+                  'site': e.site,
+                  'hours': '${e.start} - ${e.end} (${e.breakMinutes} Min.)',
+                }).toList(),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF Export'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => _showTimeForm(context, sites, employees, onAdd),
+              icon: const Icon(Icons.add),
+              label: const Text('Zeit erfassen'),
+            ),
+          ],
         ),
       ),
       _ModuleCard(
@@ -1109,8 +1022,7 @@ class _TimeTracking extends StatelessWidget {
                       (e) => _DataTile(
                         icon: Icons.schedule,
                         title: '${e.employee} · ${e.site}',
-                        subtitle:
-                            '${e.date} · ${e.start}–${e.end} · Pause ${e.breakMinutes} Min. · ${e.task}',
+                        subtitle: '${e.date} · ${e.start}–${e.end} · Pause ${e.breakMinutes} Min. · ${e.task}',
                       ),
                     )
                     .toList(),
@@ -1173,13 +1085,7 @@ class _Employees extends StatelessWidget {
       _ModuleCard(
         child: Column(
           children: employees
-              .map(
-                (e) => _DataTile(
-                  icon: Icons.person_outline,
-                  title: e.name,
-                  subtitle: '${e.role} · ${e.phone}',
-                ),
-              )
+              .map((e) => _DataTile(icon: Icons.person_outline, title: e.name, subtitle: '${e.role} · ${e.phone}'))
               .toList(),
         ),
       ),
@@ -1188,14 +1094,11 @@ class _Employees extends StatelessWidget {
 }
 
 class _Photos extends StatelessWidget {
-  const _Photos({
-    required this.photos,
-    required this.sites,
-    required this.onAdd,
-  });
+  const _Photos({required this.photos, required this.sites, required this.onAdd, required this.service});
   final List<PhotoItem> photos;
   final List<Site> sites;
   final ValueChanged<PhotoItem> onAdd;
+  final PhotoDocumentationService service;
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -1203,26 +1106,33 @@ class _Photos extends StatelessWidget {
         title: 'Fotos',
         subtitle: 'Baustellenfotos mit Beschreibung dokumentieren.',
         action: FilledButton.icon(
-          onPressed: () => _showPhotoForm(context, sites, onAdd),
+          onPressed: sites.isEmpty
+              ? null
+              : () => showDialog<void>(
+                  context: context,
+                  builder: (context) => PhotoUploadDialog(
+                    sites: sites
+                        .map((site) => SiteSelectorItem(id: site.id, name: site.name, status: site.status))
+                        .toList(),
+                    service: service,
+                    onSaved: (documentation) {
+                      final site = sites.firstWhere((site) => site.id == documentation.projectId);
+                      onAdd(
+                        PhotoItem(site: site.name, description: '${documentation.category} · ${documentation.note}'),
+                      );
+                    },
+                  ),
+                ),
           icon: const Icon(Icons.add_a_photo_outlined),
           label: const Text('Foto dokumentieren'),
         ),
       ),
       _ModuleCard(
         child: photos.isEmpty
-            ? const _EmptyState(
-                icon: Icons.photo_camera_outlined,
-                text: 'Noch keine Fotodokumentationen.',
-              )
+            ? const _EmptyState(icon: Icons.photo_camera_outlined, text: 'Noch keine Fotodokumentationen.')
             : Column(
                 children: photos
-                    .map(
-                      (p) => _DataTile(
-                        icon: Icons.photo_outlined,
-                        title: p.site,
-                        subtitle: p.description,
-                      ),
-                    )
+                    .map((p) => _DataTile(icon: Icons.photo_outlined, title: p.site, subtitle: p.description))
                     .toList(),
               ),
       ),
@@ -1235,10 +1145,7 @@ class _Settings extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      const _PageHeader(
-        title: 'Einstellungen',
-        subtitle: 'Grundlegende Einstellungen für Pincus Work.',
-      ),
+      const _PageHeader(title: 'Einstellungen', subtitle: 'Grundlegende Einstellungen für Pincus Work.'),
       const _ModuleCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1259,12 +1166,7 @@ class _Settings extends StatelessWidget {
 }
 
 class _DataTile extends StatelessWidget {
-  const _DataTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.status,
-  });
+  const _DataTile({required this.icon, required this.title, required this.subtitle, this.status});
   final IconData icon;
   final String title;
   final String subtitle;
@@ -1275,10 +1177,7 @@ class _DataTile extends StatelessWidget {
     leading: Container(
       width: 42,
       height: 42,
-      decoration: BoxDecoration(
-        color: _greenLight,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: _greenLight, borderRadius: BorderRadius.circular(10)),
       child: Icon(icon, color: _greenDark),
     ),
     title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -1315,10 +1214,7 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-Future<void> _showSiteForm(
-  BuildContext context,
-  ValueChanged<Site> onSave,
-) async {
+Future<void> _showSiteForm(BuildContext context, ValueChanged<Site> onSave) async {
   final name = TextEditingController();
   final customer = TextEditingController();
   final address = TextEditingController();
@@ -1340,17 +1236,10 @@ Future<void> _showSiteForm(
       ),
     ],
     onSave: () {
-      if (name.text.trim().isEmpty ||
-          customer.text.trim().isEmpty ||
-          address.text.trim().isEmpty)
+      if (name.text.trim().isEmpty || customer.text.trim().isEmpty || address.text.trim().isEmpty) {
         return false;
-      onSave(
-        Site(
-          name: name.text.trim(),
-          customer: customer.text.trim(),
-          address: address.text.trim(),
-        ),
-      );
+      }
+      onSave(Site(name: name.text.trim(), customer: customer.text.trim(), address: address.text.trim()));
       return true;
     },
   );
@@ -1376,17 +1265,13 @@ Future<void> _showTimeForm(
       DropdownButtonFormField<String>(
         initialValue: employee,
         decoration: const InputDecoration(labelText: 'Mitarbeiter'),
-        items: employees
-            .map((e) => DropdownMenuItem(value: e.name, child: Text(e.name)))
-            .toList(),
+        items: employees.map((e) => DropdownMenuItem(value: e.name, child: Text(e.name))).toList(),
         onChanged: (v) => employee = v,
       ),
       DropdownButtonFormField<String>(
         initialValue: site,
         decoration: const InputDecoration(labelText: 'Baustelle'),
-        items: sites
-            .map((s) => DropdownMenuItem(value: s.name, child: Text(s.name)))
-            .toList(),
+        items: sites.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
         onChanged: (v) => site = v,
       ),
       TextField(
@@ -1412,8 +1297,9 @@ Future<void> _showTimeForm(
       ),
     ],
     onSave: () {
-      if (employee == null || site == null || task.text.trim().isEmpty)
+      if (employee == null || site == null || task.text.trim().isEmpty) {
         return false;
+      }
       onSave(
         TimeEntry(
           employee: employee!,
@@ -1430,10 +1316,7 @@ Future<void> _showTimeForm(
   );
 }
 
-Future<void> _showOrderForm(
-  BuildContext context,
-  ValueChanged<OrderItem> onSave,
-) async {
+Future<void> _showOrderForm(BuildContext context, ValueChanged<OrderItem> onSave) async {
   final number = TextEditingController(text: 'AU-${DateTime.now().year}-');
   final title = TextEditingController();
   final customer = TextEditingController();
@@ -1455,8 +1338,9 @@ Future<void> _showOrderForm(
       ),
     ],
     onSave: () {
-      if (title.text.trim().isEmpty || customer.text.trim().isEmpty)
+      if (title.text.trim().isEmpty || customer.text.trim().isEmpty) {
         return false;
+      }
       onSave(
         OrderItem(
           number: number.text.trim(),
@@ -1470,10 +1354,7 @@ Future<void> _showOrderForm(
   );
 }
 
-Future<void> _showEmployeeForm(
-  BuildContext context,
-  ValueChanged<Employee> onSave,
-) async {
+Future<void> _showEmployeeForm(BuildContext context, ValueChanged<Employee> onSave) async {
   final name = TextEditingController();
   final role = TextEditingController();
   final phone = TextEditingController();
@@ -1497,46 +1378,7 @@ Future<void> _showEmployeeForm(
     ],
     onSave: () {
       if (name.text.trim().isEmpty) return false;
-      onSave(
-        Employee(
-          name: name.text.trim(),
-          role: role.text.trim(),
-          phone: phone.text.trim(),
-        ),
-      );
-      return true;
-    },
-  );
-}
-
-Future<void> _showPhotoForm(
-  BuildContext context,
-  List<Site> sites,
-  ValueChanged<PhotoItem> onSave,
-) async {
-  String? site = sites.isNotEmpty ? sites.first.name : null;
-  final description = TextEditingController();
-  await _showForm(
-    context,
-    title: 'Foto dokumentieren',
-    fields: [
-      DropdownButtonFormField<String>(
-        initialValue: site,
-        decoration: const InputDecoration(labelText: 'Baustelle'),
-        items: sites
-            .map((s) => DropdownMenuItem(value: s.name, child: Text(s.name)))
-            .toList(),
-        onChanged: (v) => site = v,
-      ),
-      TextField(
-        controller: description,
-        maxLines: 3,
-        decoration: const InputDecoration(labelText: 'Beschreibung *'),
-      ),
-    ],
-    onSave: () {
-      if (site == null || description.text.trim().isEmpty) return false;
-      onSave(PhotoItem(site: site!, description: description.text.trim()));
+      onSave(Employee(name: name.text.trim(), role: role.text.trim(), phone: phone.text.trim()));
       return true;
     },
   );
@@ -1557,22 +1399,12 @@ Future<void> _showForm(
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: fields
-                .map(
-                  (f) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: f,
-                  ),
-                )
-                .toList(),
+            children: fields.map((f) => Padding(padding: const EdgeInsets.only(bottom: 12), child: f)).toList(),
           ),
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
         FilledButton(
           onPressed: () {
             if (onSave()) Navigator.pop(context);

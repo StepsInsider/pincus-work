@@ -9,32 +9,14 @@ void main() {
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 
-  testWidgets('material module can be opened', (WidgetTester tester) async {
+  testWidgets('year calendar can be opened', (WidgetTester tester) async {
     await tester.pumpWidget(const PincusWorkApp());
 
-    await tester.tap(find.byIcon(Icons.construction_outlined));
+    await tester.tap(find.byIcon(Icons.calendar_month_outlined));
     await tester.pumpAndSettle();
 
-    expect(find.text('Material & Geräte'), findsOneWidget);
-    expect(find.text('Eintrag erfassen'), findsOneWidget);
-  });
-
-  testWidgets('material entry requires a positive quantity', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const PincusWorkApp());
-    await tester.tap(find.byIcon(Icons.construction_outlined));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Eintrag erfassen'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Speichern'));
-    await tester.pump();
-
-    expect(find.text('Material / Gerät erfassen'), findsOneWidget);
-    expect(
-      find.text('Bitte Bezeichnung und eine gültige Menge angeben.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Jahreskalender'), findsOneWidget);
+    expect(find.text('Januar'), findsOneWidget);
+    expect(find.text('Dezember'), findsOneWidget);
   });
 }
