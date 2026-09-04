@@ -50,4 +50,52 @@ class PdfService {
       onLayout: (PdfPageFormat format) async => pdf.save(),
     );
   }
+
+  static Future<void> printOrdersReport({
+    required String title,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.TableHelper.fromTextArray(
+                headers: ['Nr.', 'Titel', 'Kunde', 'Status'],
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.grey300,
+                ),
+                cellAlignment: pw.Alignment.centerLeft,
+                data: items
+                    .map((item) => [
+                          item['number']?.toString() ?? '',
+                          item['title']?.toString() ?? '',
+                          item['customer']?.toString() ?? '',
+                          item['status']?.toString() ?? '',
+                        ])
+                    .toList(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
 }

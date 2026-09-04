@@ -1042,10 +1042,29 @@ class _Orders extends StatelessWidget {
       _PageHeader(
         title: 'Aufträge',
         subtitle: 'Aufträge, Leistungen und Material verwalten.',
-        action: FilledButton.icon(
-          onPressed: () => _showOrderForm(context, onAdd),
-          icon: const Icon(Icons.add),
-          label: const Text('Auftrag anlegen'),
+        action: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => PdfService.printOrdersReport(
+                title: 'Auftragsübersicht Pincus Work',
+                items: orders.map((o) => {
+                  'number': o.number,
+                  'title': o.title,
+                  'customer': o.customer,
+                  'status': o.status,
+                }).toList(),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('PDF Export'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => _showOrderForm(context, onAdd),
+              icon: const Icon(Icons.add),
+              label: const Text('Auftrag anlegen'),
+            ),
+          ],
         ),
       ),
       _ModuleCard(
