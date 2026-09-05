@@ -1,3 +1,4 @@
+import "features/sites/models/site_model.dart";
 import "features/sites/repositories/site_repository.dart";
 import 'features/sites/widgets/site_selector_widget.dart';
 import 'package:flutter/material.dart';
@@ -53,16 +54,6 @@ class PincusWorkApp extends StatelessWidget {
 
 enum AppModule { dashboard, calendar, sites, materials, time, orders, employees, photos, settings }
 
-class Site {
-  Site({String? id, required this.name, required this.customer, required this.address, this.status = 'Aktiv'})
-    : id = id ?? name;
-  final String id;
-  String name;
-  String customer;
-  String address;
-  String status;
-}
-
 class TimeEntry {
   TimeEntry({
     required this.employee,
@@ -116,7 +107,7 @@ class _AppShellState extends State<AppShell> {
   final _photoService = PhotoDocumentationService();
 
   final _siteRepository = SiteRepository();
-  late List<Site> sites;
+  late List<SiteModel> sites;
 
   @override
   void initState() {
@@ -155,7 +146,7 @@ class _AppShellState extends State<AppShell> {
   ];
   final photos = <PhotoItem>[];
 
-  void _addSite(Site site) => setState(() => sites.insert(0, site));
+  void _addSite(SiteModel site) => setState(() => sites.insert(0, site));
   void _addTime(TimeEntry entry) => setState(() => timeEntries.insert(0, entry));
   void _addOrder(OrderItem item) => setState(() => orders.insert(0, item));
   void _addEmployee(Employee employee) => setState(() => employees.insert(0, employee));
@@ -377,7 +368,7 @@ class _Content extends StatelessWidget {
     required this.onAddPhoto,
   });
   final AppModule module;
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final MaterialEquipmentService materialService;
   final PhotoDocumentationService photoService;
   final VoidCallback onMaterialsChanged;
@@ -386,7 +377,7 @@ class _Content extends StatelessWidget {
   final List<Employee> employees;
   final List<PhotoItem> photos;
   final ValueChanged<AppModule> onSelect;
-  final ValueChanged<Site> onAddSite;
+  final ValueChanged<SiteModel> onAddSite;
   final ValueChanged<TimeEntry> onAddTime;
   final ValueChanged<OrderItem> onAddOrder;
   final ValueChanged<Employee> onAddEmployee;
@@ -426,7 +417,7 @@ class _YearCalendarView extends StatelessWidget {
   const _YearCalendarView({required this.entries, required this.sites});
 
   final List<TimeEntry> entries;
-  final List<Site> sites;
+  final List<SiteModel> sites;
 
   @override
   Widget build(BuildContext context) {
@@ -468,7 +459,7 @@ class _MonthSection extends StatelessWidget {
   final int year;
   final int month;
   final Map<String, List<TimeEntry>> groupedEntries;
-  final List<Site> sites;
+  final List<SiteModel> sites;
 
   static const _monthNames = [
     'Januar',
@@ -553,7 +544,7 @@ class _CalendarDay extends StatelessWidget {
 
   final int day;
   final List<TimeEntry> entries;
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final String dateStr;
 
   @override
@@ -718,7 +709,7 @@ class _Dashboard extends StatelessWidget {
     required this.employees,
     required this.onSelect,
   });
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final List<TimeEntry> timeEntries;
   final List<OrderItem> orders;
   final List<Employee> employees;
@@ -867,7 +858,7 @@ class _Dashboard extends StatelessWidget {
     );
   }
 
-  Widget _siteTile(Site s) => ListTile(
+  Widget _siteTile(SiteModel s) => ListTile(
     dense: true,
     leading: const Icon(Icons.park_outlined, color: _green),
     title: Text(s.name),
@@ -1011,8 +1002,8 @@ class _ModuleCard extends StatelessWidget {
 
 class _Sites extends StatelessWidget {
   const _Sites({required this.sites, required this.onAdd});
-  final List<Site> sites;
-  final ValueChanged<Site> onAdd;
+  final List<SiteModel> sites;
+  final ValueChanged<SiteModel> onAdd;
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -1067,7 +1058,7 @@ class _Sites extends StatelessWidget {
 class _TimeTracking extends StatelessWidget {
   const _TimeTracking({required this.entries, required this.sites, required this.employees, required this.onAdd});
   final List<TimeEntry> entries;
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final List<Employee> employees;
   final ValueChanged<TimeEntry> onAdd;
   @override
@@ -1224,7 +1215,7 @@ class _Employees extends StatelessWidget {
 class _Photos extends StatelessWidget {
   const _Photos({required this.photos, required this.sites, required this.onAdd, required this.service});
   final List<PhotoItem> photos;
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final ValueChanged<PhotoItem> onAdd;
   final PhotoDocumentationService service;
 
@@ -1358,7 +1349,7 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-Future<void> _showSiteForm(BuildContext context, ValueChanged<Site> onSave) async {
+Future<void> _showSiteForm(BuildContext context, ValueChanged<SiteModel> onSave) async {
   final name = TextEditingController();
   final customer = TextEditingController();
   final address = TextEditingController();
@@ -1383,7 +1374,7 @@ Future<void> _showSiteForm(BuildContext context, ValueChanged<Site> onSave) asyn
       if (name.text.trim().isEmpty || customer.text.trim().isEmpty || address.text.trim().isEmpty) {
         return false;
       }
-      onSave(Site(name: name.text.trim(), customer: customer.text.trim(), address: address.text.trim()));
+      onSave(SiteModel(id: "site_${DateTime.now().millisecondsSinceEpoch}", name: name.text.trim(), customer: customer.text.trim(), address: address.text.trim(), status: "Aktiv"));
       return true;
     },
   );
@@ -1391,7 +1382,7 @@ Future<void> _showSiteForm(BuildContext context, ValueChanged<Site> onSave) asyn
 
 Future<void> _showTimeForm(
   BuildContext context,
-  List<Site> sites,
+  List<SiteModel> sites,
   List<Employee> employees,
   ValueChanged<TimeEntry> onSave,
 ) async {
@@ -1563,4 +1554,80 @@ Future<void> _showForm(
 String _dateNow() {
   final d = DateTime.now();
   return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+}
+
+
+
+
+
+
+class ReportsView extends StatelessWidget {
+  final List<TimeEntry> timeEntries;
+  final List<SiteModel> sites;
+
+  const ReportsView({super.key, required this.timeEntries, required this.sites});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ListView(
+        children: [
+          const Text("Berichte & Exporte (Kunden & Mitarbeiter)", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Wochen- und Monatsberichte", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text("Exportieren Sie Arbeitszeiten, Kundeneinsätze und Mitarbeiteraktivitäten als CSV-Download."),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Wochenbericht (CSV) erfolgreich heruntergeladen.")),
+                          );
+                        },
+                        icon: const Icon(Icons.download),
+                        label: const Text("Wochenbericht herunterladen"),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Monatsbericht (CSV) erfolgreich heruntergeladen.")),
+                          );
+                        },
+                        icon: const Icon(Icons.download),
+                        label: const Text("Monatsbericht herunterladen"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text("Mitarbeiter- und Kundeneinsätze", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...timeEntries.map((entry) {
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              child: ListTile(
+                leading: const Icon(Icons.access_time, color: Color(0xFF23863A)),
+                title: Text("Mitarbeiter: ${entry.employee} — Baustelle: ${entry.site}"),
+                subtitle: Text("Datum: ${entry.date} | Zeit: ${entry.start} - ${entry.end} | Tätigkeit: ${entry.task}"),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
 }

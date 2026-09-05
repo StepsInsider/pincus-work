@@ -1,5 +1,5 @@
+import "../../sites/models/site_model.dart";
 import 'package:flutter/material.dart';
-import '../../../main.dart' show Site;
 import '../../sites/widgets/site_selector_widget.dart';
 import '../../../services/material_equipment_service.dart';
 import '../material_entry_dialog.dart';
@@ -12,7 +12,7 @@ class MaterialsView extends StatefulWidget {
     required this.onChanged,
   });
 
-  final List<Site> sites;
+  final List<SiteModel> sites;
   final MaterialEquipmentService service;
   final VoidCallback onChanged;
 
