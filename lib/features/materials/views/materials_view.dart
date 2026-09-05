@@ -96,6 +96,8 @@ class _MaterialsViewState extends State<MaterialsView> {
                     child: Text('Noch keine Material- oder Geräteeinträge.'),
                   )
                 : ListView(
+                    shrinkWrap: true,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     children: items.map((item) {
                       final site = widget.sites.firstWhere(
                         (site) => site.id == item.projectId,
