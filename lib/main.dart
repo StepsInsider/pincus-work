@@ -123,13 +123,34 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     sites = List.from(_siteRepository.getSites());
   }
-  final timeEntries = <TimeEntry>[];
+  final timeEntries = <TimeEntry>[
+    // --- Juni 2026 ---
+    TimeEntry(employee: 'Marcel / Team', site: 'Herren', date: '16.06.2026', start: '06:30', end: '08:00', breakMinutes: '0', task: 'Hecke schneiden'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Unna Altenheim', date: '16.06.2026', start: '08:00', end: '12:30', breakMinutes: '0', task: 'Hecke schneiden'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Dorstfeld Altenheim', date: '16.06.2026', start: '13:15', end: '16:00', breakMinutes: '0', task: 'Grünpflege'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Altenheim Dorstfeld', date: '17.06.2026', start: '06:30', end: '08:30', breakMinutes: '0', task: 'Hecke schneiden'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Altenheim Huckarde', date: '17.06.2026', start: '08:30', end: '14:30', breakMinutes: '0', task: 'Hecke schneiden'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Wickede', date: '29.06.2026', start: '07:00', end: '16:30', breakMinutes: '30', task: 'Rollrasen Vorbereitung & Zaun setzen'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Wickede', date: '30.06.2026', start: '07:00', end: '18:00', breakMinutes: '30', task: 'Zaun setzen & Rollrasen legen'),
+
+    // --- Juli 2026 ---
+    TimeEntry(employee: 'Marcel / Team', site: 'Rat und Tat / Maiwald', date: '01.07.2026', start: '07:00', end: '08:30', breakMinutes: '0', task: 'Pflege'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Kieschoweit', date: '01.07.2026', start: '09:30', end: '10:00', breakMinutes: '0', task: 'Pflege'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Drea 112', date: '01.07.2026', start: '09:30', end: '14:00', breakMinutes: '0', task: 'Hecke schneiden / Pflege'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Drea 63', date: '01.07.2026', start: '14:45', end: '15:30', breakMinutes: '0', task: 'Pflege'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Ochzen Feld', date: '20.07.2026', start: '07:30', end: '16:30', breakMinutes: '30', task: 'Zaun abbauen, ausschachten (Team: Marcel, Ben, Pawel)'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Ochzen', date: '21.07.2026', start: '07:00', end: '18:00', breakMinutes: '30', task: 'Erdarbeiten (Team: Marcel, Ben, Patrick)'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Stahlschmidt', date: '12.08.2026', start: '07:00', end: '15:00', breakMinutes: '30', task: 'Ausgeschachtet, Schotter reingefahren, gepflastert (Team: Marcel, René)'),
+    TimeEntry(employee: 'Marcel / Team', site: 'John Weil', date: '26.08.2026', start: '08:00', end: '17:30', breakMinutes: '30', task: 'Schotter auf Höhe machen, Split rein, abziehen (Team: Marcel, René, Phil)'),
+    TimeEntry(employee: 'Marcel / Team', site: 'Dortmund Mengede', date: '29.08.2026', start: '07:30', end: '10:00', breakMinutes: '0', task: 'Rasenpflege (Team: Marcel, René, Ben)'),
+  ];
   final orders = <OrderItem>[
     OrderItem(number: 'AU-2026-001', title: 'Baumkontrolle und Pflege', customer: 'Max Mustermann', status: 'Offen'),
     OrderItem(number: 'AU-2026-002', title: 'Heckenschnitt', customer: 'Müller Immobilien', status: 'In Arbeit'),
   ];
   final employees = <Employee>[
     Employee(name: 'René Pincus', role: 'Geschäftsführung', phone: '0170 0000000'),
+    Employee(name: 'Marcel', role: 'Vorarbeiter', phone: '0172 0000000'),
     Employee(name: 'Mitarbeiter 1', role: 'Fachkraft', phone: '0171 0000000'),
   ];
   final photos = <PhotoItem>[];
