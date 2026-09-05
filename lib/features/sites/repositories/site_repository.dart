@@ -185,4 +185,11 @@ class SiteRepository {
   void addSite(SiteModel site) {
     _sites.add(site);
   }
+
+  void updateSite(SiteModel updatedSite) {
+    final index = _sites.indexWhere((s) => s.id == updatedSite.id);
+    if (index != -1) {
+      _sites[index] = updatedSite;
+    }
+  }
 }
