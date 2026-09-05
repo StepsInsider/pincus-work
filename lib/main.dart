@@ -1,3 +1,4 @@
+import "features/sites/repositories/site_repository.dart";
 import 'features/sites/widgets/site_selector_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -114,10 +115,14 @@ class _AppShellState extends State<AppShell> {
   final _materialService = MaterialEquipmentService();
   final _photoService = PhotoDocumentationService();
 
-  final sites = <Site>[
-    Site(name: 'Baumfällung Musterstraße', customer: 'Max Mustermann', address: 'Musterstraße 12, Kamen'),
-    Site(name: 'Gartenpflege Lindenweg', customer: 'Müller Immobilien', address: 'Lindenweg 8, Unna'),
-  ];
+  final _siteRepository = SiteRepository();
+  late List<Site> sites;
+
+  @override
+  void initState() {
+    super.initState();
+    sites = List.from(_siteRepository.getSites());
+  }
   final timeEntries = <TimeEntry>[];
   final orders = <OrderItem>[
     OrderItem(number: 'AU-2026-001', title: 'Baumkontrolle und Pflege', customer: 'Max Mustermann', status: 'Offen'),
