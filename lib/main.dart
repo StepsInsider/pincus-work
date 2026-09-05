@@ -1,3 +1,6 @@
+import "dart:convert";
+
+import "csv_download.dart";
 import "features/sites/models/site_model.dart";
 import "features/sites/repositories/site_repository.dart";
 import 'features/sites/widgets/site_selector_widget.dart';
@@ -1557,15 +1560,35 @@ String _dateNow() {
 }
 
 
-
-
-
-
 class ReportsView extends StatelessWidget {
   final List<TimeEntry> timeEntries;
   final List<SiteModel> sites;
 
   const ReportsView({super.key, required this.timeEntries, required this.sites});
+
+  void _downloadCsv(BuildContext context, String period) {
+    String csvField(String value) {
+      final escaped = value.replaceAll('"', '""');
+      return '"$escaped"';
+    }
+
+    final sb = StringBuffer();
+    sb.writeln('Mitarbeiter,Baustelle,Datum,Start,Ende,Pause (Min),Taetigkeit');
+
+    for (final entry in timeEntries) {
+      sb.writeln(
+        '${csvField(entry.employee)},${csvField(entry.site)},${csvField(entry.date)},${csvField(entry.start)},${csvField(entry.end)},${entry.breakMinutes},${csvField(entry.task)}',
+      );
+    }
+
+    final encodedCsv = base64Encode(utf8.encode('\uFEFF${sb.toString()}'));
+    final fileName = '$period-${DateTime.now().toIso8601String().substring(0, 10)}.csv';
+    downloadCsv(fileName, encodedCsv);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$period-Export erfolgreich heruntergeladen.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1581,29 +1604,21 @@ class ReportsView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Wochen- und Monatsberichte", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text("Wochen- und Monatsberichte (CSV-Export)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  const Text("Exportieren Sie Arbeitszeiten, Kundeneinsätze und Mitarbeiteraktivitäten als CSV-Download."),
+                  const Text("Exportieren Sie alle erfassten Arbeitszeiten und Kundeneinsätze für die Buchhaltung oder Auswertung."),
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 12,
                     runSpacing: 12,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Wochenbericht (CSV) erfolgreich heruntergeladen.")),
-                          );
-                        },
+                        onPressed: () => _downloadCsv(context, "Wochenbericht"),
                         icon: const Icon(Icons.download),
                         label: const Text("Wochenbericht herunterladen"),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Monatsbericht (CSV) erfolgreich heruntergeladen.")),
-                          );
-                        },
+                        onPressed: () => _downloadCsv(context, "Monatsbericht"),
                         icon: const Icon(Icons.download),
                         label: const Text("Monatsbericht herunterladen"),
                       ),
@@ -1614,18 +1629,24 @@ class ReportsView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text("Mitarbeiter- und Kundeneinsätze", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text("Mitarbeiter- und Kundeneinsätze (Live-Übersicht)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          ...timeEntries.map((entry) {
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                leading: const Icon(Icons.access_time, color: Color(0xFF23863A)),
-                title: Text("Mitarbeiter: ${entry.employee} — Baustelle: ${entry.site}"),
-                subtitle: Text("Datum: ${entry.date} | Zeit: ${entry.start} - ${entry.end} | Tätigkeit: ${entry.task}"),
-              ),
-            );
-          }),
+          if (timeEntries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text("Keine Zeiteinträge vorhanden."),
+            )
+          else
+            ...timeEntries.map((entry) {
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: ListTile(
+                  leading: const Icon(Icons.access_time, color: Color(0xFF23863A)),
+                  title: Text("Mitarbeiter: ${entry.employee} — Baustelle: ${entry.site}"),
+                  subtitle: Text("Datum: ${entry.date} | Zeit: ${entry.start} - ${entry.end} | Tätigkeit: ${entry.task}"),
+                ),
+              );
+            }),
         ],
       ),
     );
