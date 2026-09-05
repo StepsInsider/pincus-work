@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-FLUTTER_VERSION="${FLUTTER_VERSION:-3.44.4}"
+FLUTTER_VERSION="${FLUTTER_VERSION:-3.24.3}"
 FLUTTER_DIR="$HOME/flutter"
 
 echo "=== Pincus Work – Flutter Web Build ==="
 echo "Flutter-Version: $FLUTTER_VERSION"
 
-if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
-  echo "Flutter SDK wird installiert..."
+if [ ! -x "$FLUTTER_DIR/bin/flutter" ] || [ ! -f "$FLUTTER_DIR/bin/internal/shared.sh" ]; then
+  echo "Flutter SDK wird installiert oder repariert..."
 
   rm -rf "$FLUTTER_DIR"
 
@@ -29,7 +29,7 @@ echo "=== Dependencies ==="
 flutter pub get
 
 echo "=== Flutter Web Release Build ==="
-flutter build web --release
+flutter build web --release --no-wasm-dry-run
 
 echo "=== Build erfolgreich ==="
 ls -lah build/web
