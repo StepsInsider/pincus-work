@@ -1,5 +1,5 @@
 [build]
-  # command = "bash scripts/netlify-build.sh"
+  command = "flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
   publish = "build/web"
 
 [build.environment]
