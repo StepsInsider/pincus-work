@@ -1,5 +1,5 @@
 [build]
-  command = "if [ -d \"flutter\" ]; then cd flutter && git pull && cd ..; else git clone https://github.com/flutter/flutter.git -b stable --depth 1; fi && export PATH=\"$PWD/flutter/bin:$PATH\" && flutter doctor && flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+  command = "if [ -d \"../flutter\" ]; then cd ../flutter && git pull && cd ../repo; else git clone https://github.com/flutter/flutter.git -b stable --depth 1 ../flutter; fi && export PATH=\"$PWD/../flutter/bin:$PATH\" && flutter doctor && flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
   publish = "build/web"
 
 [build.environment]
