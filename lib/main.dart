@@ -1,22 +1,58 @@
+import "dart:async";
 import "dart:convert";
 
-import "csv_download.dart";
-import "features/sites/models/site_model.dart";
-import "features/sites/repositories/site_repository.dart";
-import 'features/sites/widgets/site_selector_widget.dart';
 import 'package:flutter/material.dart';
 
-import 'services/material_equipment_service.dart';
+import "csv_download.dart";
+import 'features/customers/repositories/customer_repository.dart';
 import 'features/materials/views/materials_view.dart';
 import 'features/photos/photo_upload_dialog.dart';
-import 'services/photo_documentation_service.dart';
+import "features/sites/models/site_model.dart";
+import "features/sites/repositories/site_repository.dart";
+import 'features/sites/screens/baustellen_detail_screen.dart';
+import 'features/sites/widgets/site_selector_widget.dart';
+import 'features/timetracking/repositories/time_entry_repository.dart';
+import 'services/material_equipment_service.dart';
 import 'services/pdf_service.dart';
+import 'services/photo_documentation_service.dart';
 
 const _green = Color(0xFF23863A);
 const _greenDark = Color(0xFF17672B);
 const _greenLight = Color(0xFFEAF5EC);
 const _surface = Color(0xFFF7F8F6);
 const _border = Color(0xFFE2E7E2);
+
+DateTime _parseEntryDate(String value) {
+  final parts = value.split('.');
+  if (parts.length == 3) {
+    return DateTime(
+      int.tryParse(parts[2]) ?? DateTime.now().year,
+      int.tryParse(parts[1]) ?? DateTime.now().month,
+      int.tryParse(parts[0]) ?? DateTime.now().day,
+    );
+  }
+  return DateTime.tryParse(value) ?? DateTime.now();
+}
+
+double _hoursBetween(String start, String end, int breakMinutes) {
+  int minutes(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return 0;
+    return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+  }
+
+  final duration = minutes(end) - minutes(start) - breakMinutes;
+  return duration > 0 ? duration / 60 : 0;
+}
+
+Future<void> _saveUpdate(BuildContext context, Future<void> operation) async {
+  try {
+    await operation;
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $error')));
+  }
+}
 
 void main() => runApp(const PincusWorkApp());
 
@@ -59,6 +95,7 @@ enum AppModule { dashboard, calendar, sites, materials, time, orders, employees,
 
 class TimeEntry {
   TimeEntry({
+    String? id,
     required this.employee,
     required this.site,
     required this.date,
@@ -66,7 +103,8 @@ class TimeEntry {
     required this.end,
     required this.breakMinutes,
     required this.task,
-  });
+  }) : id = id ?? 'time_${DateTime.now().microsecondsSinceEpoch}';
+  final String id;
   String employee;
   String site;
   String date;
@@ -74,6 +112,15 @@ class TimeEntry {
   String end;
   String breakMinutes;
   String task;
+
+  Map<String, dynamic> toSupabaseMap() => {
+    'project_id': site,
+    'project_name': site,
+    'employee_name': employee,
+    'hours': _hoursBetween(start, end, int.tryParse(breakMinutes) ?? 0),
+    'date': _parseEntryDate(date).toUtc().toIso8601String(),
+    'description': task,
+  };
 }
 
 class OrderItem {
@@ -110,33 +157,164 @@ class _AppShellState extends State<AppShell> {
   final _photoService = PhotoDocumentationService();
 
   final _siteRepository = SiteRepository();
+  final _customerRepository = CustomerRepository();
+  final _timeEntryRepository = TimeEntryRepository();
   late List<SiteModel> sites;
 
   @override
   void initState() {
     super.initState();
-    sites = List.from(_siteRepository.getSites());
+    sites = List.from(_siteRepository.sites);
   }
+
   final timeEntries = <TimeEntry>[
     // --- Juni 2026 ---
-    TimeEntry(employee: 'Marcel / Team', site: 'Herren', date: '16.06.2026', start: '06:30', end: '08:00', breakMinutes: '0', task: 'Hecke schneiden'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Unna Altenheim', date: '16.06.2026', start: '08:00', end: '12:30', breakMinutes: '0', task: 'Hecke schneiden'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Dorstfeld Altenheim', date: '16.06.2026', start: '13:15', end: '16:00', breakMinutes: '0', task: 'Grünpflege'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Altenheim Dorstfeld', date: '17.06.2026', start: '06:30', end: '08:30', breakMinutes: '0', task: 'Hecke schneiden'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Altenheim Huckarde', date: '17.06.2026', start: '08:30', end: '14:30', breakMinutes: '0', task: 'Hecke schneiden'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Wickede', date: '29.06.2026', start: '07:00', end: '16:30', breakMinutes: '30', task: 'Rollrasen Vorbereitung & Zaun setzen'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Wickede', date: '30.06.2026', start: '07:00', end: '18:00', breakMinutes: '30', task: 'Zaun setzen & Rollrasen legen'),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Herren',
+      date: '16.06.2026',
+      start: '06:30',
+      end: '08:00',
+      breakMinutes: '0',
+      task: 'Hecke schneiden',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Unna Altenheim',
+      date: '16.06.2026',
+      start: '08:00',
+      end: '12:30',
+      breakMinutes: '0',
+      task: 'Hecke schneiden',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Dorstfeld Altenheim',
+      date: '16.06.2026',
+      start: '13:15',
+      end: '16:00',
+      breakMinutes: '0',
+      task: 'Grünpflege',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Altenheim Dorstfeld',
+      date: '17.06.2026',
+      start: '06:30',
+      end: '08:30',
+      breakMinutes: '0',
+      task: 'Hecke schneiden',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Altenheim Huckarde',
+      date: '17.06.2026',
+      start: '08:30',
+      end: '14:30',
+      breakMinutes: '0',
+      task: 'Hecke schneiden',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Wickede',
+      date: '29.06.2026',
+      start: '07:00',
+      end: '16:30',
+      breakMinutes: '30',
+      task: 'Rollrasen Vorbereitung & Zaun setzen',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Wickede',
+      date: '30.06.2026',
+      start: '07:00',
+      end: '18:00',
+      breakMinutes: '30',
+      task: 'Zaun setzen & Rollrasen legen',
+    ),
 
     // --- Juli 2026 ---
-    TimeEntry(employee: 'Marcel / Team', site: 'Rat und Tat / Maiwald', date: '01.07.2026', start: '07:00', end: '08:30', breakMinutes: '0', task: 'Pflege'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Kieschoweit', date: '01.07.2026', start: '09:30', end: '10:00', breakMinutes: '0', task: 'Pflege'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Drea 112', date: '01.07.2026', start: '09:30', end: '14:00', breakMinutes: '0', task: 'Hecke schneiden / Pflege'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Drea 63', date: '01.07.2026', start: '14:45', end: '15:30', breakMinutes: '0', task: 'Pflege'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Ochzen Feld', date: '20.07.2026', start: '07:30', end: '16:30', breakMinutes: '30', task: 'Zaun abbauen, ausschachten (Team: Marcel, Ben, Pawel)'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Ochzen', date: '21.07.2026', start: '07:00', end: '18:00', breakMinutes: '30', task: 'Erdarbeiten (Team: Marcel, Ben, Patrick)'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Stahlschmidt', date: '12.08.2026', start: '07:00', end: '15:00', breakMinutes: '30', task: 'Ausgeschachtet, Schotter reingefahren, gepflastert (Team: Marcel, René)'),
-    TimeEntry(employee: 'Marcel / Team', site: 'John Weil', date: '26.08.2026', start: '08:00', end: '17:30', breakMinutes: '30', task: 'Schotter auf Höhe machen, Split rein, abziehen (Team: Marcel, René, Phil)'),
-    TimeEntry(employee: 'Marcel / Team', site: 'Dortmund Mengede', date: '29.08.2026', start: '07:30', end: '10:00', breakMinutes: '0', task: 'Rasenpflege (Team: Marcel, René, Ben)'),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Rat und Tat / Maiwald',
+      date: '01.07.2026',
+      start: '07:00',
+      end: '08:30',
+      breakMinutes: '0',
+      task: 'Pflege',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Kieschoweit',
+      date: '01.07.2026',
+      start: '09:30',
+      end: '10:00',
+      breakMinutes: '0',
+      task: 'Pflege',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Drea 112',
+      date: '01.07.2026',
+      start: '09:30',
+      end: '14:00',
+      breakMinutes: '0',
+      task: 'Hecke schneiden / Pflege',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Drea 63',
+      date: '01.07.2026',
+      start: '14:45',
+      end: '15:30',
+      breakMinutes: '0',
+      task: 'Pflege',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Ochzen Feld',
+      date: '20.07.2026',
+      start: '07:30',
+      end: '16:30',
+      breakMinutes: '30',
+      task: 'Zaun abbauen, ausschachten (Team: Marcel, Ben, Pawel)',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Ochzen',
+      date: '21.07.2026',
+      start: '07:00',
+      end: '18:00',
+      breakMinutes: '30',
+      task: 'Erdarbeiten (Team: Marcel, Ben, Patrick)',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Stahlschmidt',
+      date: '12.08.2026',
+      start: '07:00',
+      end: '15:00',
+      breakMinutes: '30',
+      task: 'Ausgeschachtet, Schotter reingefahren, gepflastert (Team: Marcel, René)',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'John Weil',
+      date: '26.08.2026',
+      start: '08:00',
+      end: '17:30',
+      breakMinutes: '30',
+      task: 'Schotter auf Höhe machen, Split rein, abziehen (Team: Marcel, René, Phil)',
+    ),
+    TimeEntry(
+      employee: 'Marcel / Team',
+      site: 'Dortmund Mengede',
+      date: '29.08.2026',
+      start: '07:30',
+      end: '10:00',
+      breakMinutes: '0',
+      task: 'Rasenpflege (Team: Marcel, René, Ben)',
+    ),
   ];
   final orders = <OrderItem>[
     OrderItem(number: 'AU-2026-001', title: 'Baumkontrolle und Pflege', customer: 'Max Mustermann', status: 'Offen'),
@@ -151,6 +329,43 @@ class _AppShellState extends State<AppShell> {
 
   void _addSite(SiteModel site) => setState(() => sites.insert(0, site));
   void _addTime(TimeEntry entry) => setState(() => timeEntries.insert(0, entry));
+  Future<void> _updateSite(SiteModel site) async {
+    await _siteRepository.updateSite(site);
+    if (!mounted) return;
+    setState(() {
+      final index = sites.indexWhere((item) => item.id == site.id);
+      if (index != -1) sites[index] = site;
+    });
+  }
+
+  Future<void> _updateTimeEntry(TimeEntry entry) async {
+    await _timeEntryRepository.updateTimeEntryData(id: entry.id, values: entry.toSupabaseMap());
+    if (!mounted) return;
+    setState(() {
+      final index = timeEntries.indexWhere((item) => item.id == entry.id);
+      if (index != -1) timeEntries[index] = entry;
+    });
+  }
+
+  Future<void> _deleteSite(SiteModel site) async {
+    await _siteRepository.deleteSite(site.id);
+    if (!mounted) return;
+    setState(() => sites.removeWhere((item) => item.id == site.id));
+  }
+
+  Future<void> _deleteTimeEntry(TimeEntry entry) async {
+    await _timeEntryRepository.deleteTimeEntry(entry.id);
+    if (!mounted) return;
+    setState(() => timeEntries.removeWhere((item) => item.id == entry.id));
+  }
+
+  void _replaceSiteLocally(SiteModel site) {
+    setState(() {
+      final index = sites.indexWhere((item) => item.id == site.id);
+      if (index != -1) sites[index] = site;
+    });
+  }
+
   void _addOrder(OrderItem item) => setState(() => orders.insert(0, item));
   void _addEmployee(Employee employee) => setState(() => employees.insert(0, employee));
   void _addPhoto(PhotoItem photo) => setState(() => photos.insert(0, photo));
@@ -182,7 +397,13 @@ class _AppShellState extends State<AppShell> {
                           photos: photos,
                           onSelect: (m) => setState(() => _module = m),
                           onAddSite: _addSite,
+                          onUpdateSite: _updateSite,
+                          onDeleteSite: _deleteSite,
+                          customerRepository: _customerRepository,
+                          onSiteUpdated: _replaceSiteLocally,
                           onAddTime: _addTime,
+                          onUpdateTime: _updateTimeEntry,
+                          onDeleteTime: _deleteTimeEntry,
                           onAddOrder: _addOrder,
                           onAddEmployee: _addEmployee,
                           onAddPhoto: _addPhoto,
@@ -365,7 +586,13 @@ class _Content extends StatelessWidget {
     required this.photos,
     required this.onSelect,
     required this.onAddSite,
+    required this.onUpdateSite,
+    required this.onDeleteSite,
+    required this.customerRepository,
+    required this.onSiteUpdated,
     required this.onAddTime,
+    required this.onUpdateTime,
+    required this.onDeleteTime,
     required this.onAddOrder,
     required this.onAddEmployee,
     required this.onAddPhoto,
@@ -381,7 +608,13 @@ class _Content extends StatelessWidget {
   final List<PhotoItem> photos;
   final ValueChanged<AppModule> onSelect;
   final ValueChanged<SiteModel> onAddSite;
+  final Future<void> Function(SiteModel) onUpdateSite;
+  final Future<void> Function(SiteModel) onDeleteSite;
+  final CustomerRepository customerRepository;
+  final ValueChanged<SiteModel> onSiteUpdated;
   final ValueChanged<TimeEntry> onAddTime;
+  final Future<void> Function(TimeEntry) onUpdateTime;
+  final Future<void> Function(TimeEntry) onDeleteTime;
   final ValueChanged<OrderItem> onAddOrder;
   final ValueChanged<Employee> onAddEmployee;
   final ValueChanged<PhotoItem> onAddPhoto;
@@ -402,9 +635,23 @@ class _Content extends StatelessWidget {
               onSelect: onSelect,
             ),
             AppModule.calendar => _YearCalendarView(entries: timeEntries, sites: sites),
-            AppModule.sites => _Sites(sites: sites, onAdd: onAddSite),
+            AppModule.sites => _Sites(
+              sites: sites,
+              onAdd: onAddSite,
+              onUpdate: onUpdateSite,
+              onDelete: onDeleteSite,
+              customerRepository: customerRepository,
+              onSiteUpdated: onSiteUpdated,
+            ),
             AppModule.materials => MaterialsView(sites: sites, service: materialService, onChanged: onMaterialsChanged),
-            AppModule.time => _TimeTracking(entries: timeEntries, sites: sites, employees: employees, onAdd: onAddTime),
+            AppModule.time => _TimeTracking(
+              entries: timeEntries,
+              sites: sites,
+              employees: employees,
+              onAdd: onAddTime,
+              onUpdate: onUpdateTime,
+              onDelete: onDeleteTime,
+            ),
             AppModule.orders => _Orders(orders: orders, onAdd: onAddOrder),
             AppModule.employees => _Employees(employees: employees, onAdd: onAddEmployee),
             AppModule.photos => _Photos(photos: photos, sites: sites, onAdd: onAddPhoto, service: photoService),
@@ -574,33 +821,37 @@ class _CalendarDay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Gesamte Stunden: ${totalHours.toStringAsFixed(1)} Std.', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      'Gesamte Stunden: ${totalHours.toStringAsFixed(1)} Std.',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 12),
                     if (entries.isEmpty)
                       const Text('Keine Zeiteinträge an diesem Tag.')
                     else
-                      ...entries.map((e) => Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Mitarbeiter: ${e.employee}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              Text('Baustelle/Kunde: ${e.site}'),
-                              Text('Zeitraum: ${e.start} - ${e.end} (${_entryHours(e).toStringAsFixed(1)} Std.)'),
-                              if (e.task.isNotEmpty) Text('Notiz: ${e.task}', style: const TextStyle(color: Colors.black54)),
-                            ],
+                      ...entries.map(
+                        (e) => Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Mitarbeiter: ${e.employee}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text('Baustelle/Kunde: ${e.site}'),
+                                Text('Zeitraum: ${e.start} - ${e.end} (${_entryHours(e).toStringAsFixed(1)} Std.)'),
+                                if (e.task.isNotEmpty)
+                                  Text('Notiz: ${e.task}', style: const TextStyle(color: Colors.black54)),
+                              ],
+                            ),
                           ),
                         ),
-                      )),
+                      ),
                   ],
                 ),
               ),
             ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Schließen')),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Schließen'))],
           ),
         );
       },
@@ -1004,9 +1255,20 @@ class _ModuleCard extends StatelessWidget {
 }
 
 class _Sites extends StatelessWidget {
-  const _Sites({required this.sites, required this.onAdd});
+  const _Sites({
+    required this.sites,
+    required this.onAdd,
+    required this.onUpdate,
+    required this.onDelete,
+    required this.customerRepository,
+    required this.onSiteUpdated,
+  });
   final List<SiteModel> sites;
   final ValueChanged<SiteModel> onAdd;
+  final Future<void> Function(SiteModel) onUpdate;
+  final Future<void> Function(SiteModel) onDelete;
+  final CustomerRepository customerRepository;
+  final ValueChanged<SiteModel> onSiteUpdated;
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -1019,12 +1281,9 @@ class _Sites extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => PdfService.printSitesReport(
                 title: 'Baustellenübersicht Pincus Work',
-                items: sites.map((s) => {
-                  'name': s.name,
-                  'customer': s.customer,
-                  'address': s.address,
-                  'status': s.status,
-                }).toList(),
+                items: sites
+                    .map((s) => {'name': s.name, 'customer': s.customer, 'address': s.address, 'status': s.status})
+                    .toList(),
               ),
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('PDF Export'),
@@ -1049,6 +1308,22 @@ class _Sites extends StatelessWidget {
                         title: s.name,
                         subtitle: '${s.customer} · ${s.address}',
                         status: s.status,
+                        onEdit: () => _showSiteForm(context, onAdd, initial: s, onUpdate: onUpdate),
+                        onDelete: () => _confirmAndDelete(
+                          context,
+                          title: 'Baustelle löschen?',
+                          message: 'Die Baustelle "${s.name}" wird dauerhaft gelöscht.',
+                          operation: () => onDelete(s),
+                        ),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => BaustellenDetailScreen(
+                              site: s,
+                              customerRepository: customerRepository,
+                              onSiteUpdated: onSiteUpdated,
+                            ),
+                          ),
+                        ),
                       ),
                     )
                     .toList(),
@@ -1059,11 +1334,20 @@ class _Sites extends StatelessWidget {
 }
 
 class _TimeTracking extends StatelessWidget {
-  const _TimeTracking({required this.entries, required this.sites, required this.employees, required this.onAdd});
+  const _TimeTracking({
+    required this.entries,
+    required this.sites,
+    required this.employees,
+    required this.onAdd,
+    required this.onUpdate,
+    required this.onDelete,
+  });
   final List<TimeEntry> entries;
   final List<SiteModel> sites;
   final List<Employee> employees;
   final ValueChanged<TimeEntry> onAdd;
+  final Future<void> Function(TimeEntry) onUpdate;
+  final Future<void> Function(TimeEntry) onDelete;
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -1076,12 +1360,16 @@ class _TimeTracking extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => PdfService.printTimeReport(
                 title: 'Stundennachweis Pincus Work',
-                items: entries.map((e) => {
-                  'date': e.date,
-                  'employee': e.employee,
-                  'site': e.site,
-                  'hours': '${e.start} - ${e.end} (${e.breakMinutes} Min.)',
-                }).toList(),
+                items: entries
+                    .map(
+                      (e) => {
+                        'date': e.date,
+                        'employee': e.employee,
+                        'site': e.site,
+                        'hours': '${e.start} - ${e.end} (${e.breakMinutes} Min.)',
+                      },
+                    )
+                    .toList(),
               ),
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('PDF Export'),
@@ -1108,6 +1396,13 @@ class _TimeTracking extends StatelessWidget {
                         icon: Icons.schedule,
                         title: '${e.employee} · ${e.site}',
                         subtitle: '${e.date} · ${e.start}–${e.end} · Pause ${e.breakMinutes} Min. · ${e.task}',
+                        onEdit: () => _showTimeForm(context, sites, employees, onAdd, initial: e, onUpdate: onUpdate),
+                        onDelete: () => _confirmAndDelete(
+                          context,
+                          title: 'Zeiteintrag löschen?',
+                          message: 'Der Eintrag vom ${e.date} wird dauerhaft gelöscht.',
+                          operation: () => onDelete(e),
+                        ),
                       ),
                     )
                     .toList(),
@@ -1133,12 +1428,9 @@ class _Orders extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => PdfService.printOrdersReport(
                 title: 'Auftragsübersicht Pincus Work',
-                items: orders.map((o) => {
-                  'number': o.number,
-                  'title': o.title,
-                  'customer': o.customer,
-                  'status': o.status,
-                }).toList(),
+                items: orders
+                    .map((o) => {'number': o.number, 'title': o.title, 'customer': o.customer, 'status': o.status})
+                    .toList(),
               ),
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('PDF Export'),
@@ -1186,11 +1478,7 @@ class _Employees extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => PdfService.printEmployeesReport(
                 title: 'Mitarbeiterübersicht Pincus Work',
-                items: employees.map((e) => {
-                  'name': e.name,
-                  'role': e.role,
-                  'phone': e.phone,
-                }).toList(),
+                items: employees.map((e) => {'name': e.name, 'role': e.role, 'phone': e.phone}).toList(),
               ),
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('PDF Export'),
@@ -1234,11 +1522,7 @@ class _Photos extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => PdfService.printPhotosReport(
                 title: 'Fotodokumentation Pincus Work',
-                items: photos.map((p) => {
-                  'siteName': p.site,
-                  'description': p.description,
-                  'date': '-',
-                }).toList(),
+                items: photos.map((p) => {'siteName': p.site, 'description': p.description, 'date': '-'}).toList(),
               ),
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('PDF Export'),
@@ -1267,11 +1551,9 @@ class _Photos extends StatelessWidget {
         child: Column(
           children: photos.isEmpty
               ? [const Padding(padding: EdgeInsets.all(16), child: Text('Keine Fotos vorhanden'))]
-              : photos.map((p) => _DataTile(
-                  icon: Icons.photo_outlined,
-                  title: p.site,
-                  subtitle: p.description,
-                )).toList(),
+              : photos
+                    .map((p) => _DataTile(icon: Icons.photo_outlined, title: p.site, subtitle: p.description))
+                    .toList(),
         ),
       ),
     ],
@@ -1304,13 +1586,25 @@ class _Settings extends StatelessWidget {
 }
 
 class _DataTile extends StatelessWidget {
-  const _DataTile({required this.icon, required this.title, required this.subtitle, this.status});
+  const _DataTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.status,
+    this.onEdit,
+    this.onDelete,
+    this.onTap,
+  });
   final IconData icon;
   final String title;
   final String subtitle;
   final String? status;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
     contentPadding: const EdgeInsets.symmetric(vertical: 4),
     leading: Container(
       width: 42,
@@ -1320,13 +1614,41 @@ class _DataTile extends StatelessWidget {
     ),
     title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
     subtitle: Text(subtitle),
-    trailing: status == null
-        ? null
-        : Text(
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (status != null)
+          Text(
             status!,
             style: const TextStyle(color: _green, fontWeight: FontWeight.w700),
           ),
+        if (onEdit != null) IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined), tooltip: 'Bearbeiten'),
+        if (onDelete != null)
+          IconButton(onPressed: onDelete, icon: const Icon(Icons.delete_outline), tooltip: 'Löschen'),
+      ],
+    ),
   );
+}
+
+Future<void> _confirmAndDelete(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required Future<void> Function() operation,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
+        FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('Löschen')),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  await _saveUpdate(context, operation());
 }
 
 class _EmptyState extends StatelessWidget {
@@ -1352,13 +1674,19 @@ class _EmptyState extends StatelessWidget {
   );
 }
 
-Future<void> _showSiteForm(BuildContext context, ValueChanged<SiteModel> onSave) async {
-  final name = TextEditingController();
-  final customer = TextEditingController();
-  final address = TextEditingController();
+Future<void> _showSiteForm(
+  BuildContext context,
+  ValueChanged<SiteModel> onSave, {
+  SiteModel? initial,
+  Future<void> Function(SiteModel)? onUpdate,
+}) async {
+  final name = TextEditingController(text: initial?.name);
+  final customer = TextEditingController(text: initial?.customer);
+  final address = TextEditingController(text: initial?.address);
+  String status = initial?.status ?? 'Geplant';
   await _showForm(
     context,
-    title: 'Baustelle anlegen',
+    title: initial == null ? 'Baustelle anlegen' : 'Baustelle bearbeiten',
     fields: [
       TextField(
         controller: name,
@@ -1372,12 +1700,34 @@ Future<void> _showSiteForm(BuildContext context, ValueChanged<SiteModel> onSave)
         controller: address,
         decoration: const InputDecoration(labelText: 'Adresse *'),
       ),
+      DropdownButtonFormField<String>(
+        initialValue: status,
+        decoration: const InputDecoration(labelText: 'Status'),
+        items: const [
+          DropdownMenuItem(value: 'Geplant', child: Text('Geplant')),
+          DropdownMenuItem(value: 'In Ausführung', child: Text('In Ausführung')),
+          DropdownMenuItem(value: 'Abgeschlossen', child: Text('Abgeschlossen')),
+        ],
+        onChanged: (value) => status = value ?? status,
+      ),
     ],
     onSave: () {
       if (name.text.trim().isEmpty || customer.text.trim().isEmpty || address.text.trim().isEmpty) {
         return false;
       }
-      onSave(SiteModel(id: "site_${DateTime.now().millisecondsSinceEpoch}", name: name.text.trim(), customer: customer.text.trim(), address: address.text.trim(), status: "Aktiv"));
+      final updated = SiteModel(
+        id: initial?.id ?? "site_${DateTime.now().millisecondsSinceEpoch}",
+        name: name.text.trim(),
+        customer: customer.text.trim(),
+        address: address.text.trim(),
+        status: status,
+        customerId: initial?.customerId,
+      );
+      if (initial == null) {
+        onSave(updated);
+      } else if (onUpdate != null) {
+        unawaited(_saveUpdate(context, onUpdate(updated)));
+      }
       return true;
     },
   );
@@ -1387,18 +1737,20 @@ Future<void> _showTimeForm(
   BuildContext context,
   List<SiteModel> sites,
   List<Employee> employees,
-  ValueChanged<TimeEntry> onSave,
-) async {
-  final date = TextEditingController(text: _dateNow());
-  final start = TextEditingController(text: '07:00');
-  final end = TextEditingController(text: '16:00');
-  final pause = TextEditingController(text: '30');
-  final task = TextEditingController();
-  String? employee = employees.isNotEmpty ? employees.first.name : null;
-  String? site = sites.isNotEmpty ? sites.first.name : null;
+  ValueChanged<TimeEntry> onSave, {
+  TimeEntry? initial,
+  Future<void> Function(TimeEntry)? onUpdate,
+}) async {
+  final date = TextEditingController(text: initial?.date ?? _dateNow());
+  final start = TextEditingController(text: initial?.start ?? '07:00');
+  final end = TextEditingController(text: initial?.end ?? '16:00');
+  final pause = TextEditingController(text: initial?.breakMinutes ?? '30');
+  final task = TextEditingController(text: initial?.task);
+  String? employee = initial?.employee ?? (employees.isNotEmpty ? employees.first.name : null);
+  String? site = initial?.site ?? (sites.isNotEmpty ? sites.first.name : null);
   await _showForm(
     context,
-    title: 'Zeit erfassen',
+    title: initial == null ? 'Zeit erfassen' : 'Zeiteintrag bearbeiten',
     fields: [
       DropdownButtonFormField<String>(
         initialValue: employee,
@@ -1438,17 +1790,21 @@ Future<void> _showTimeForm(
       if (employee == null || site == null || task.text.trim().isEmpty) {
         return false;
       }
-      onSave(
-        TimeEntry(
-          employee: employee!,
-          site: site!,
-          date: date.text.trim(),
-          start: start.text.trim(),
-          end: end.text.trim(),
-          breakMinutes: pause.text.trim(),
-          task: task.text.trim(),
-        ),
+      final updated = TimeEntry(
+        id: initial?.id,
+        employee: employee!,
+        site: site!,
+        date: date.text.trim(),
+        start: start.text.trim(),
+        end: end.text.trim(),
+        breakMinutes: pause.text.trim(),
+        task: task.text.trim(),
       );
+      if (initial == null) {
+        onSave(updated);
+      } else if (onUpdate != null) {
+        unawaited(_saveUpdate(context, onUpdate(updated)));
+      }
       return true;
     },
   );
@@ -1559,7 +1915,6 @@ String _dateNow() {
   return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 }
 
-
 class ReportsView extends StatelessWidget {
   final List<TimeEntry> timeEntries;
   final List<SiteModel> sites;
@@ -1567,27 +1922,20 @@ class ReportsView extends StatelessWidget {
   const ReportsView({super.key, required this.timeEntries, required this.sites});
 
   void _downloadCsv(BuildContext context, String period) {
-    String csvField(String value) {
-      final escaped = value.replaceAll('"', '""');
-      return '"$escaped"';
-    }
-
     final sb = StringBuffer();
     sb.writeln('Mitarbeiter,Baustelle,Datum,Start,Ende,Pause (Min),Taetigkeit');
 
     for (final entry in timeEntries) {
       sb.writeln(
-        '${csvField(entry.employee)},${csvField(entry.site)},${csvField(entry.date)},${csvField(entry.start)},${csvField(entry.end)},${entry.breakMinutes},${csvField(entry.task)}',
+        '"${entry.employee}","${entry.site}","${entry.date}","${entry.start}","${entry.end}",${entry.breakMinutes},"${entry.task}"',
       );
     }
 
-    final encodedCsv = base64Encode(utf8.encode('\uFEFF${sb.toString()}'));
+    final encodedCsv = base64Encode(utf8.encode(sb.toString()));
     final fileName = '$period-${DateTime.now().toIso8601String().substring(0, 10)}.csv';
     downloadCsv(fileName, encodedCsv);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$period-Export erfolgreich heruntergeladen.')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$period-Export erfolgreich heruntergeladen.')));
   }
 
   @override
@@ -1596,7 +1944,10 @@ class ReportsView extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: ListView(
         children: [
-          const Text("Berichte & Exporte (Kunden & Mitarbeiter)", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const Text(
+            "Berichte & Exporte (Kunden & Mitarbeiter)",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -1604,9 +1955,14 @@ class ReportsView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Wochen- und Monatsberichte (CSV-Export)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Wochen- und Monatsberichte (CSV-Export)",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  const Text("Exportieren Sie alle erfassten Arbeitszeiten und Kundeneinsätze für die Buchhaltung oder Auswertung."),
+                  const Text(
+                    "Exportieren Sie alle erfassten Arbeitszeiten und Kundeneinsätze für die Buchhaltung oder Auswertung.",
+                  ),
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 12,
@@ -1629,13 +1985,13 @@ class ReportsView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text("Mitarbeiter- und Kundeneinsätze (Live-Übersicht)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            "Mitarbeiter- und Kundeneinsätze (Live-Übersicht)",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           if (timeEntries.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text("Keine Zeiteinträge vorhanden."),
-            )
+            const Padding(padding: EdgeInsets.all(16.0), child: Text("Keine Zeiteinträge vorhanden."))
           else
             ...timeEntries.map((entry) {
               return Card(
@@ -1643,7 +1999,9 @@ class ReportsView extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.access_time, color: Color(0xFF23863A)),
                   title: Text("Mitarbeiter: ${entry.employee} — Baustelle: ${entry.site}"),
-                  subtitle: Text("Datum: ${entry.date} | Zeit: ${entry.start} - ${entry.end} | Tätigkeit: ${entry.task}"),
+                  subtitle: Text(
+                    "Datum: ${entry.date} | Zeit: ${entry.start} - ${entry.end} | Tätigkeit: ${entry.task}",
+                  ),
                 ),
               );
             }),

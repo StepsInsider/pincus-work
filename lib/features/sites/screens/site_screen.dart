@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../repositories/site_repository.dart';
+
 import '../models/site_model.dart';
+import '../repositories/site_repository.dart';
 import 'site_edit_screen.dart';
 
 class SiteScreen extends StatefulWidget {
@@ -16,10 +17,7 @@ class _SiteScreenState extends State<SiteScreen> {
   void _openEdit(SiteModel site) async {
     final updated = await Navigator.of(context).push<SiteModel>(
       MaterialPageRoute(
-        builder: (context) => SiteEditScreen(
-          site: site,
-          repository: _repository,
-        ),
+        builder: (context) => SiteEditScreen(site: site, repository: _repository),
       ),
     );
     if (updated != null) {
@@ -29,7 +27,7 @@ class _SiteScreenState extends State<SiteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sites = _repository.getSites();
+    final sites = _repository.sites;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,10 +49,7 @@ class _SiteScreenState extends State<SiteScreen> {
             ),
             child: ListTile(
               onTap: () => _openEdit(site),
-              title: Text(
-                site.name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: Text(site.name, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('${site.customer} • ${site.address}'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

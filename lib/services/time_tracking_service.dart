@@ -18,6 +18,15 @@ class TimeEntry {
     required this.date,
     required this.description,
   });
+
+  Map<String, dynamic> toMap() => {
+    'project_id': projectId,
+    'project_name': projectName,
+    'employee_name': employeeName,
+    'hours': hours,
+    'date': date.toUtc().toIso8601String(),
+    'description': description,
+  };
 }
 
 class TimeTrackingService extends ChangeNotifier {
@@ -57,6 +66,25 @@ class TimeTrackingService extends ChangeNotifier {
       description: description,
     );
     _entries.insert(0, newEntry);
+    notifyListeners();
+  }
+
+  void entriesInsertOrAdd(TimeEntry entry) {
+    _entries.insert(0, entry);
+    notifyListeners();
+  }
+
+  Future<void> updateTimeEntry(TimeEntry updatedEntry) async {
+    final index = _entries.indexWhere((entry) => entry.id == updatedEntry.id);
+    if (index == -1) {
+      throw StateError('Zeiteintrag ${updatedEntry.id} wurde nicht gefunden.');
+    }
+    _entries[index] = updatedEntry;
+    notifyListeners();
+  }
+
+  void removeTimeEntry(String id) {
+    _entries.removeWhere((entry) => entry.id == id);
     notifyListeners();
   }
 }

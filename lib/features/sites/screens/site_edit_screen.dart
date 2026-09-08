@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/site_model.dart';
 import '../repositories/site_repository.dart';
 
@@ -6,11 +7,7 @@ class SiteEditScreen extends StatefulWidget {
   final SiteModel site;
   final SiteRepository repository;
 
-  const SiteEditScreen({
-    super.key,
-    required this.site,
-    required this.repository,
-  });
+  const SiteEditScreen({super.key, required this.site, required this.repository});
 
   @override
   State<SiteEditScreen> createState() => _SiteEditScreenState();
@@ -39,7 +36,7 @@ class _SiteEditScreenState extends State<SiteEditScreen> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final updated = SiteModel(
       id: widget.site.id,
       name: _nameController.text.trim(),
@@ -47,7 +44,14 @@ class _SiteEditScreenState extends State<SiteEditScreen> {
       address: _addressController.text.trim(),
       status: _selectedStatus,
     );
-    widget.repository.updateSite(updated);
+    try {
+      await widget.repository.updateSite(updated);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $error')));
+      return;
+    }
+    if (!mounted) return;
     Navigator.of(context).pop(updated);
   }
 
@@ -56,12 +60,7 @@ class _SiteEditScreenState extends State<SiteEditScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Baustelle bearbeiten'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _save,
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.save), onPressed: _save)],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -83,8 +82,8 @@ class _SiteEditScreenState extends State<SiteEditScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: ['In Ausführung', 'Geplant', 'Abgeschlossen'].contains(_selectedStatus) 
-                  ? _selectedStatus 
+              initialValue: ['In Ausführung', 'Geplant', 'Abgeschlossen'].contains(_selectedStatus)
+                  ? _selectedStatus
                   : 'In Ausführung',
               decoration: const InputDecoration(labelText: 'Status'),
               items: const [
