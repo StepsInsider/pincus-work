@@ -47,3 +47,5 @@ app.*.map.json
 # Local Netlify folder
 .netlify
 web/icons/Icon-192.png
+supabase/.temp/
+supabase/.temp/
